@@ -14,7 +14,7 @@ default types
 #
 # Applications for commercial use should be made to Schlumberger or the University of Cambridge.
 
-from distutils.version import StrictVersion
+from packaging.version import Version
 
 from matplotlib import __version__ as matplotlib_version
 #
@@ -168,7 +168,7 @@ MTFIT_PARSER_DEFAULT_TYPES = {
 # MTplot defaults are set in this dictionary and updated by site and user
 # defaults
 DEFAULT_HIST_COLORMAP = 'viridis'
-if StrictVersion(matplotlib_version) < StrictVersion('1.5.0'):
+if Version(matplotlib_version) < Version('1.5.0'):
     DEFAULT_HIST_COLORMAP = 'CMRmap'
 DEFAULT_AMP_COLORMAP = 'bwr'
 

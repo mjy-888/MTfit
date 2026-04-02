@@ -838,7 +838,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2dc, self.N1dc)
                 self.assertVectorEquals(N1dc, self.N2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertVectorEquals(N1mt, self.N1mt)
             self.assertVectorEquals(N2mt, self.N2mt)
@@ -847,7 +847,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2mt, self.N1mt)
                 self.assertVectorEquals(N1mt, self.N2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
 
     def test_SDSD_FP_multiple(self):
         [N1, N2] = SDSD_FP(np.array([self.S1mt, self.S1dc]),
@@ -862,7 +862,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2[:, 1], self.N1dc)
                 self.assertVectorEquals(N1[:, 1], self.N2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertVectorEquals(N1[:, 0], self.N1mt)
             self.assertVectorEquals(N2[:, 0], self.N2mt)
@@ -871,7 +871,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2[:, 0], self.N1mt)
                 self.assertVectorEquals(N1[:, 0], self.N2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
 
     def test_SDR_FP(self):
         [N1dc, N2dc] = SDR_FP(self.S1dc, self.D1dc, self.R1dc)
@@ -884,7 +884,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2dc, self.N1dc)
                 self.assertVectorEquals(N1dc, self.N2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertVectorEquals(N1mt, self.N1mt)
             self.assertVectorEquals(N2mt, self.N2mt)
@@ -893,7 +893,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2mt, self.N1mt)
                 self.assertVectorEquals(N1mt, self.N2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
 
     def test_SDR_FP_multiple(self):
         [N1, N2] = SDR_FP(np.array([self.S1mt, self.S1dc]),
@@ -907,7 +907,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2[:, 1], self.N1dc)
                 self.assertVectorEquals(N1[:, 1], self.N2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertVectorEquals(N1[:, 0], self.N1mt)
             self.assertVectorEquals(N2[:, 0], self.N2mt)
@@ -916,7 +916,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2[:, 0], self.N1mt)
                 self.assertVectorEquals(N1[:, 0], self.N2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         [N1dc, N2dc] = SDR_FP(self.S2dc, self.D2dc, self.R2dc)
         [N1mt, N2mt] = SDR_FP(self.S2mt, self.D2mt, self.R2mt)
         try:
@@ -927,7 +927,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2dc, self.N1dc)
                 self.assertVectorEquals(N1dc, self.N2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertVectorEquals(N1mt, self.N1mt)
             self.assertVectorEquals(N2mt, self.N2mt)
@@ -936,7 +936,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2mt, self.N1mt)
                 self.assertVectorEquals(N1mt, self.N2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         [N1, N2] = SDR_FP(np.array([self.S2mt, self.S2dc]), np.array(
             [self.D2mt, self.D2dc]), np.array([self.R2mt, self.R2dc]))
         try:
@@ -947,7 +947,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2[:, 1], self.N1dc)
                 self.assertVectorEquals(N1[:, 1], self.N2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertVectorEquals(N1[:, 0], self.N1mt)
             self.assertVectorEquals(N2[:, 0], self.N2mt)
@@ -956,7 +956,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertVectorEquals(N2[:, 0], self.N1mt)
                 self.assertVectorEquals(N1[:, 0], self.N2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
 
     def test_SDR_SDSD(self):
         [S1dc, D1dc, S2dc, D2dc] = SDR_SDSD(self.S1dc, self.D1dc, self.R1dc)
@@ -973,7 +973,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2dc, self.D1dc)
                 self.assertAlmostEquals(D1dc, self.D2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertAlmostEquals(S1mt, self.S1mt)
             self.assertAlmostEquals(S2mt, self.S2mt)
@@ -986,7 +986,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2mt, self.D1mt)
                 self.assertAlmostEquals(D1mt, self.D2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
 
     def test_SDR_SDSD_multiple(self):
         [S1, D1, S2, D2] = SDR_SDSD(np.array([self.S1mt, self.S1dc]),
@@ -1004,7 +1004,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2[1], self.D1dc)
                 self.assertAlmostEquals(D1[1], self.D2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertAlmostEquals(S1[0], self.S1mt)
             self.assertAlmostEquals(S2[0], self.S2mt)
@@ -1017,7 +1017,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2[0], self.D1mt)
                 self.assertAlmostEquals(D1[0], self.D2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         [S1dc, D1dc, S2dc, D2dc] = SDR_SDSD(self.S2dc, self.D2dc, self.R2dc)
         [S1mt, D1mt, S2mt, D2mt] = SDR_SDSD(self.S2mt, self.D2mt, self.R2mt)
         try:
@@ -1060,7 +1060,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2dc, self.D1dc)
                 self.assertAlmostEquals(D1dc, self.D2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertAlmostEquals(S1mt, self.S1mt)
             self.assertAlmostEquals(S2mt, self.S2mt)
@@ -1073,7 +1073,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2mt, self.D1mt)
                 self.assertAlmostEquals(D1mt, self.D2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         [S1, D1, S2, D2] = SDR_SDSD(np.array([self.S2mt, self.S2dc]),
                                     np.array([self.D2mt, self.D2dc]),
                                     np.array([self.R2mt, self.R2dc]))
@@ -1117,7 +1117,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2[1], self.D1dc)
                 self.assertAlmostEquals(D1[1], self.D2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertAlmostEquals(S1[0], self.S1mt)
             self.assertAlmostEquals(S2[0], self.S2mt)
@@ -1130,7 +1130,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2[0], self.D1mt)
                 self.assertAlmostEquals(D1[0], self.D2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
 
     def test_FP_SDSD(self):
         [S1dc, D1dc, S2dc, D2dc] = FP_SDSD(self.N1dc, self.N2dc)
@@ -1147,7 +1147,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2dc, self.D1dc)
                 self.assertAlmostEquals(D1dc, self.D2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertAlmostEquals(S1mt, self.S1mt)
             self.assertAlmostEquals(S2mt, self.S2mt)
@@ -1160,7 +1160,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2mt, self.D1mt)
                 self.assertAlmostEquals(D1mt, self.D2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
 
     def test_FP_SDSD_multiple(self):
         [S1, D1, S2, D2] = FP_SDSD(np.append(self.N1mt, self.N1dc, 1),
@@ -1177,7 +1177,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2[1], self.D1dc)
                 self.assertAlmostEquals(D1[1], self.D2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertAlmostEquals(S1[0], self.S1mt)
             self.assertAlmostEquals(S2[0], self.S2mt)
@@ -1190,7 +1190,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2[0], self.D1mt)
                 self.assertAlmostEquals(D1[0], self.D2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         [S1dc, D1dc, S2dc, D2dc] = FP_SDSD(self.N2dc, self.N1dc)
         [S1mt, D1mt, S2mt, D2mt] = FP_SDSD(self.N2mt, self.N1mt)
         try:
@@ -1205,7 +1205,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2dc, self.D1dc)
                 self.assertAlmostEquals(D1dc, self.D2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertAlmostEquals(S1mt, self.S1mt)
             self.assertAlmostEquals(S2mt, self.S2mt)
@@ -1218,7 +1218,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2mt, self.D1mt)
                 self.assertAlmostEquals(D1mt, self.D2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         [S1, D1, S2, D2] = FP_SDSD(np.append(self.N2mt, self.N2dc, 1),
                                    np.append(self.N1mt, self.N1dc, 1))
         try:
@@ -1233,7 +1233,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2[1], self.D1dc)
                 self.assertAlmostEquals(D1[1], self.D2dc)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
         try:
             self.assertAlmostEquals(S1[0], self.S1mt)
             self.assertAlmostEquals(S2[0], self.S2mt)
@@ -1246,7 +1246,7 @@ class MomentTensorConvertTestCase(TestCase):
                 self.assertAlmostEquals(D2[0], self.D1mt)
                 self.assertAlmostEquals(D1[0], self.D2mt)
             except AssertionError as e2:
-                raise AssertionError(e1.message+' or '+e2.message)
+                raise AssertionError(f'{e1} or {e2}')
 
     def test_Tape_MT33(self):
         MT33 = Tape_MT33(self.Gmt, self.Dmt, self.Kmt, self.Hmt, self.Omt)

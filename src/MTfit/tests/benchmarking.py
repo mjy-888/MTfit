@@ -6,10 +6,7 @@ Module containing benchmarking tests for the different algorithms and example da
 import sys
 import time
 import os
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import pickle
 
 import numpy as np
 
@@ -38,7 +35,7 @@ def run_benchmarks():
     results = algorithm_benchmarks(data_file)
     # delete data file
     _delete_default_event(data_file)
-    print results
+    print(results)
 
 
 def algorithm_benchmarks(event_file, scatter_file=None, algorithm=None, plot=False, save_matlab=True, matlab_version='7.3',
@@ -76,7 +73,7 @@ def _run_benchmarks(event_file, scatter_file, algorithm, sample_range, iteration
     results = {'samples': {}}
     # Benchmark sample steps
     for nsamples in sample_range:
-        print '\n\n==================\nRunning benchmark for '+str(nsamples)+' samples and algorithm '+str(algorithm)+'\n\n==================\n\n'
+        print(f'\n\n==================\nRunning benchmark for {nsamples} samples and algorithm {algorithm}\n\n==================\n\n')
         if mt:
             test_inversion = Inversion(data_file=event_file, angle_scatter_file_path=scatter_file,
                                        algorithm=algorithm, parallel=False, dc=False, max_samples=nsamples,
@@ -97,13 +94,13 @@ def _run_benchmarks(event_file, scatter_file, algorithm, sample_range, iteration
             if nsamples not in results['samples']:
                 results['samples'][nsamples] = {}
             results['samples'][nsamples]['DC'] = times
-        print '\n\n==================\nBenchmark for '+str(nsamples)+' samples and algorithm '+str(algorithm)+' complete\n\n==================\n\n'
+        print(f'\n\n==================\nBenchmark for {nsamples} samples and algorithm {algorithm} complete\n\n==================\n\n')
     results['iteration_step'] = {}
     # Benchmark iteration steps
     calculated_iteration_size = test_inversion.number_samples
     for i in iteration_size_range:
         if i <= calculated_iteration_size:
-            print '\n\n==================\nRunning benchmark for '+str(i)+' iteration samples and algorithm '+str(algorithm)+'\n\n==================\n\n'
+            print(f'\n\n==================\nRunning benchmark for {i} iteration samples and algorithm {algorithm}\n\n==================\n\n')
             results['iteration_step'][i] = {}
             if mt:
                 test_inversion = Inversion(data_file=event_file, angle_scatter_file_path=scatter_file,
