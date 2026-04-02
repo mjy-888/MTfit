@@ -983,6 +983,8 @@ def ln_normalise(ln_pdf: np.ndarray, dV: float = 1) -> np.ndarray:
         logger.info(C_EXTENSION_FALLBACK_LOG_MSG)
     # scale and then marginalise:
     ln_scale = 0
+    if ln_pdf.size == 0:
+        return ln_pdf
     if -ln_pdf.max() > 0 and ln_pdf.max() > -np.inf:
         ln_scale = -ln_pdf.max()
     with warnings.catch_warnings() and np.errstate(divide='ignore'):

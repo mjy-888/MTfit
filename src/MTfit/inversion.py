@@ -217,7 +217,7 @@ class ForwardTask:
                         # Check if  any probabilities are non zero otherwise return
                         if not np.prod(ln_p_total.shape) or not ln_p_total.max() > -np.inf:
                             if not self._return_zero:
-                                return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
+                                return {'moment_tensors': np.empty((self.mt.shape[0], 0)), 'ln_pdf': LnPDF(np.empty((1, 0))), 'n': N}
                             return {'moment_tensors': self.mt, 'ln_pdf': LnPDF(-np.inf*np.ones(self.mt.shape[1])), 'n': N}
                         # Otherwise probability evaluation is complete so set return flag to True
                         _return = True
@@ -288,7 +288,7 @@ class ForwardTask:
                     # Check if  any probabilities are non zero otherwise return
                     if not ln_p_total.max() > -np.inf:
                         if not self._return_zero:
-                            return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
+                            return {'moment_tensors': np.empty((self.mt.shape[0], 0)), 'ln_pdf': LnPDF(np.empty((1, 0))), 'n': N}
                         if location_samples and self.marginalise:
                             # Return marginalised zero PDF
                             return {'moment_tensors': self.mt, 'ln_pdf': LnPDF(-np.inf*np.ones(self.mt.shape[1])), 'n': N}
@@ -378,13 +378,13 @@ class ForwardTask:
                         ln_p_total = ln_p_total[:, ln_p_total.nonzero()]
                     return {'moment_tensors': self.mt, 'ln_pdf': LnPDF(ln_p_total), 'n': N}
                 else:
-                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
+                    return {'moment_tensors': np.empty((self.mt.shape[0], 0)), 'ln_pdf': LnPDF(np.empty((1, 0))), 'n': N}
             return False
         except Exception as e:
             # Overall error catch
             warnings.warn('Error in forward task:{}\n\nReturning no result and continuing [no action required].'.format(e), RuntimeWarning)
             traceback.print_exc()
-            return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': 0}
+            return {'moment_tensors': np.empty((self.mt.shape[0], 0)), 'ln_pdf': LnPDF(np.empty((1, 0))), 'n': 0}
 
 
 class McMCForwardTask:
@@ -618,7 +618,7 @@ class MultipleEventsForwardTask:
             if not self._combine:
                 if not (ln_pdf > -np.inf).any() and self._relative and ((isinstance(self.a_relative_amplitude, list) and len(self.a_relative_amplitude)) or not isinstance(self.a_relative_amplitude, (bool, list))):
                     # in relative loop  and all zero prob
-                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
+                    return {'moment_tensors': np.empty((self.mts[0].shape[0], 0)), 'ln_pdf': LnPDF(np.empty((1, 0))), 'n': N}
                 ln_p_total.append(ln_pdf)
                 continue
             # all zero so breaking
@@ -630,7 +630,7 @@ class MultipleEventsForwardTask:
             if not (ln_p_total > -np.inf).any():
                 # return zeros
                 if not self._return_zero:
-                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
+                    return {'moment_tensors': np.empty((self.mts[0].shape[0], 0)), 'ln_pdf': LnPDF(np.empty((1, 0))), 'n': N}
                 return {'moment_tensors': self.mts, 'ln_pdf': ln_p_total, 'n': N, 'scale_factor': scale_factor}
             # Update mts
             if not self._return_zero:
@@ -656,7 +656,7 @@ class MultipleEventsForwardTask:
                 # Get fewest number of mts and set all non-zero mts to that
                 min_mts = min(non_zero)
                 if min_mts == 0:
-                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
+                    return {'moment_tensors': np.empty((self.mts[0].shape[0], 0)), 'ln_pdf': LnPDF(np.empty((1, 0))), 'n': N}
                 for i, ln_p in enumerate(ln_p_total):
                     if i == 0:
                         ln_p_t = ln_p[:, 0: min_mts]
@@ -722,7 +722,7 @@ class MultipleEventsForwardTask:
                             # return zeros
                             if not (ln_p_total > -np.inf).any():
                                 if not self._return_zero:
-                                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
+                                    return {'moment_tensors': np.empty((self.mts[0].shape[0], 0)), 'ln_pdf': LnPDF(np.empty((1, 0))), 'n': N}
                                 return {'moment_tensors': self.mts, 'ln_pdf': ln_p_total, 'n': N}
                             # Update mts for non-zeros
                             if not self._return_zero:
@@ -780,7 +780,7 @@ class MultipleEventsForwardTask:
 
                                     if not (ln_p_total > -np.inf).any():
                                         if not self._return_zero:
-                                            return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
+                                            return {'moment_tensors': np.empty((self.mts[0].shape[0], 0)), 'ln_pdf': LnPDF(np.empty((1, 0))), 'n': N}
                                         return {'moment_tensors': self.mts, 'ln_pdf': ln_p_total, 'n': N}
                                     # Update mts for non-zeros
                                     if not self._return_zero:

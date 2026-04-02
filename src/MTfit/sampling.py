@@ -71,6 +71,11 @@ class Sample:
             self.scale_factor = np.array([])
         if isinstance(extensions_scale_factor, dict) and len(extensions_scale_factor) and not hasattr(self, 'extensions_scale_factor'):
             self.extensions_scale_factor = {}
+        # Add number of samples (n) to total number of samples (self.n)
+        self.n += n
+        # Early return for empty arrays
+        if isinstance(moment_tensors, np.ndarray) and moment_tensors.size == 0:
+            return
         # Check if moment tensors are a list (multiple events) and convert to the correct format
         if isinstance(moment_tensors, list) and isinstance(moment_tensors[0], np.ndarray):
             moment_tensors = np.array(moment_tensors)
@@ -80,8 +85,6 @@ class Sample:
             raise ValueError('Moment Tensor shape must be 6x1 when using a float ln_pdf')
         elif not isinstance(ln_pdf, (float, int, np.float64, np.float32)) and moment_tensors.shape[1] != ln_pdf.shape[1]:
             raise ValueError('Moment Tensor shape[2] and ln_pdf shape[2] must be the same')
-        # Add number of samples (n) to total number of samples (self.n)
-        self.n += n
         # Convert ln_pdf to ln_pdf form
         if isinstance(ln_pdf, (np.ndarray, float, int, np.float64, np.float32)):
             ln_pdf = LnPDF(ln_pdf)
@@ -306,6 +309,10 @@ class FileSample(Sample):
             None
 
         """
+        self.n += n
+        # Early return for empty arrays
+        if isinstance(moment_tensors, np.ndarray) and moment_tensors.size == 0:
+            return
         if isinstance(moment_tensors, list) and isinstance(moment_tensors[0], np.ndarray):
             moment_tensors = np.array(moment_tensors)
             moment_tensors = moment_tensors.reshape(moment_tensors.shape[0]*moment_tensors.shape[1], moment_tensors.shape[2])
@@ -313,8 +320,6 @@ class FileSample(Sample):
             raise ValueError('Moment Tensor shape must be 6x1 when using a float ln_pdf')
         elif not isinstance(ln_pdf, (float, int, np.float64, np.float32)) and moment_tensors.shape[1] != ln_pdf.shape[1]:
             raise ValueError('Moment Tensor shape[2] and ln_pdf shape[2] must be the same')
-
-        self.n += n
         if isinstance(ln_pdf, (np.ndarray, float, int, np.float64, np.float32)):
             ln_pdf = LnPDF(ln_pdf)
         moment_tensors = moment_tensors[:, ln_pdf.nonzero()]
@@ -438,6 +443,6 @@ def _convert(moment_tensors: np.ndarray, i: int | None = None) -> dict:
     output = output_convert(moment_tensors)
     if isinstance(i, int):
         # Multiple events
-        for key in output.keys():
+        for key in list(output.keys()):
             output[key+'_'+str(i)] = output.pop(key)
     return output

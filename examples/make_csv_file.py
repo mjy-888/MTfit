@@ -72,6 +72,8 @@ def run(test=False):
 def check_data(loaded_data, original_data):
     import numpy as np
     output = True
+    if isinstance(loaded_data, (np.ndarray, np.matrix)) and isinstance(original_data, (np.ndarray, np.matrix)):
+        return (np.asarray(loaded_data) == np.asarray(original_data)).all()
     if not isinstance(loaded_data, original_data.__class__):
         print('Different type: {}, {}'.format(type(loaded_data), type(original_data)))
         return False
