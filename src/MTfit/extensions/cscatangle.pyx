@@ -1,7 +1,7 @@
 # cython: infer_types=True
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
-# **Restricted:  For Non-Commercial Use Only** 
+# **Restricted:  For Non-Commercial Use Only**
 # This code is protected intellectual property and is available solely for teaching
 # and non-commercially funded academic research purposes.
 #
@@ -10,27 +10,23 @@
 cimport cython
 import numpy as np
 cimport numpy as np
-from cython.view cimport array as cvarray
-from cpython cimport bool
-# DTYPE=np.float64
-# ctypedef np.float64_t DTYPE_t
+
+np.import_array()
+
 ctypedef double DTYPE_t
 ctypedef long long LONG
-# ctypedef long long
+
 from libc.stdlib cimport rand, RAND_MAX
-IF UNAME_SYSNAME == "Windows":
-    from libc.math cimport HUGE_VAL as inf
-ELSE:
-    from libc.math cimport INFINITY as inf
-    from libc.math cimport fmax
-    from libc.math cimport fmin
-    from libc.math cimport erf
-from libc.math cimport sqrt
-from libc.math cimport exp
-from libc.math cimport log
+from libc.math cimport HUGE_VAL as inf
 from libc.math cimport fabs
 from libc.math cimport cos
 from libc.math cimport sin
+from libc.math cimport sqrt
+from libc.math cimport exp
+from libc.math cimport log
+from libc.math cimport fmax
+from libc.math cimport fmin
+from libc.math cimport erf
 from libc.math cimport M_PI as pi
 from libc.math cimport M_SQRT2 as sqrt2
 
@@ -69,11 +65,9 @@ cpdef bin_scatangle(sample_records,multipliers,bin_size):
     new_records=[]
     new_multipliers=[]
     for i,record in enumerate(sample_records):
-        # print i,record
         for j in range(len(record['Name'])):
             angles[i,0,j]=record['TakeOffAngle'][j,0]
             angles[i,1,j]=record['Azimuth'][j,0]
-    # print multipliers,bin_size,angles
     multipliers=np.asarray(get_multipliers(angles,bin_size,multipliers)).flatten()
     for i,record in enumerate(sample_records):
         if multipliers[i]>0:

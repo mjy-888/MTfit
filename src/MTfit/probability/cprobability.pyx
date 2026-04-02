@@ -10,14 +10,12 @@
 cimport cython
 import numpy as np
 cimport numpy as np
-from cython.view cimport array as cvarray
-from cpython cimport bool
 import unittest
-# DTYPE=np.float64
-# ctypedef np.float64_t DTYPE_t
+
+np.import_array()
+
 ctypedef double DTYPE_t
 ctypedef long long LONG
-# ctypedef long long
 from libc.stdlib cimport rand, RAND_MAX
 IF UNAME_SYSNAME == "Windows":
     from libc.math cimport HUGE_VAL as inf
@@ -39,8 +37,6 @@ cdef DTYPE_t RAND_MAX_D=<DTYPE_t> RAND_MAX
 cdef DTYPE_t cutoff=0.0 #Ratio PDF cutoff to approximate as Gaussian - improve calculation speed at the expense of some accuracy
 #corresponds to the Percentage error in the denominator as this governs the deviation of the ratio PDF from the Gaussian
 # 0.1 seems good by eye, little deviation over a range of percentage unc in x
-
-#cdef bool bc=True
 
 IF UNAME_SYSNAME == "Windows":
 
@@ -70,26 +66,25 @@ IF UNAME_SYSNAME == "Windows":
     @cython.wraparound(False)
     @cython.nonecheck(False)
     cpdef ln_marginalise(DTYPE_t[:,:] ln_p):
-        #cdefs
         cdef Py_ssize_t vmax=ln_p.shape[0]
         cdef Py_ssize_t wmax=ln_p.shape[1]
-        cdef DTYPE_t[:] Ln_P=np.empty((wmax)) 
+        cdef DTYPE_t[:] Ln_P=np.empty((wmax))
         cdef Py_ssize_t v,w,
         cdef DTYPE_t scale,p
         if vmax==1:
             Ln_P=ln_p[0,:]
         else:
-            for w from 0<=w<wmax:
+            for w in range(wmax):
                 p=0
                 scale=-inf
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     if ln_p[v,w]>scale:
                         scale=ln_p[v,w]
                 if scale>0:
                     scale=0
                 if scale==-inf:
                     scale=0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     p+=exp(ln_p[v,w]+fabs(scale))
                 Ln_P[w]=log(p)-fabs(scale)
         return np.asarray(Ln_P)
@@ -101,15 +96,15 @@ IF UNAME_SYSNAME == "Windows":
         cdef Py_ssize_t wmax=ln_p.shape[0]
         cdef Py_ssize_t w
         cdef DTYPE_t scale=-inf, N=0
-        for w from 0<=w<wmax:            
+        for w in range(wmax):
             if scale<ln_p[w]:
                 scale=ln_p[w]
         if scale>0:
             scale=0
-        for w from 0<=w<wmax:
+        for w in range(wmax):
             N+=exp(ln_p[w]+fabs(scale))*dV
         N=log(N)-fabs(scale)
-        for w from 0<=w<wmax:
+        for w in range(wmax):
             ln_p[w]-=N
         return np.asarray(ln_p)
 
@@ -121,31 +116,30 @@ IF UNAME_SYSNAME == "Windows":
         if x>=y:
             return x
         else:
-            return y 
+            return y
 ELSE:
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.nonecheck(False)
     cpdef ln_marginalise(DTYPE_t[:,:] ln_p):
-        #cdefs
         cdef Py_ssize_t vmax=ln_p.shape[0]
         cdef Py_ssize_t wmax=ln_p.shape[1]
-        cdef DTYPE_t[:] Ln_P=np.empty((wmax)) 
+        cdef DTYPE_t[:] Ln_P=np.empty((wmax))
         cdef Py_ssize_t v,w,
         cdef DTYPE_t scale,p
         if vmax==1:
             Ln_P=ln_p[0,:]
         else:
-            for w from 0<=w<wmax:
+            for w in range(wmax):
                 p=0
                 scale=-inf
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     scale=fmax(scale,ln_p[v,w])
                 scale=fmin(scale,0)
                 if scale==-inf:
                     scale=0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     p+=exp(ln_p[v,w]+fabs(scale))
                 Ln_P[w]=log(p)-fabs(scale)
         return np.asarray(Ln_P)
@@ -157,13 +151,13 @@ ELSE:
         cdef Py_ssize_t wmax=ln_p.shape[0]
         cdef Py_ssize_t w
         cdef DTYPE_t scale=-inf, N=0
-        for w from 0<=w<wmax:
+        for w in range(wmax):
             scale=fmax(scale,ln_p[w])
         scale=fmin(scale,0)
-        for w from 0<=w<wmax:
+        for w in range(wmax):
             N+=exp(ln_p[w]+fabs(scale))*dV
         N=log(N)-fabs(scale)
-        for w from 0<=w<wmax:
+        for w in range(wmax):
             ln_p[w]-=N
         return np.asarray(ln_p)
 
@@ -210,7 +204,6 @@ cdef inline DTYPE_t gaussian_cdf(DTYPE_t x,DTYPE_t mu,DTYPE_t s) nogil:
 @cython.nonecheck(False)
 @cython.cdivision(True)
 cdef inline DTYPE_t pol_pdf(DTYPE_t x,DTYPE_t s,DTYPE_t i) nogil:
-    # print x,s,i,0.5*((1-i)*(1+erf(x/(sqrt2*s)))+i*(1+erf(-x/(sqrt2*s))))
     return 0.5*((1-i)*(1+erf(x/(sqrt2*s)))+i*(1+erf(-x/(sqrt2*s))))
 
 @cython.boundscheck(False)
@@ -258,38 +251,34 @@ cdef inline DTYPE_t ar_pdf(DTYPE_t z,DTYPE_t mux,DTYPE_t muy,DTYPE_t psx,DTYPE_t
 @cython.nonecheck(False)
 cdef void station_polarity_ln_pdf(DTYPE_t*a,DTYPE_t*mt,DTYPE_t*ln_P,DTYPE_t*sigma,DTYPE_t*incorrect_polarity_prob,Py_ssize_t ipmax,Py_ssize_t v,Py_ssize_t umax,Py_ssize_t vmax,Py_ssize_t kmax,Py_ssize_t wmax,Py_ssize_t w,Py_ssize_t index) nogil:
     cdef DTYPE_t x=0.0
-    # print '===========',ipmax,umax
-    for u from 0<=u<umax:
+    for u in range(umax):
         x=0.
-        for k from 0<=k<kmax:# loop over num mt samples and make x
+        for k in range(kmax):
             x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
-            # print a[u*vmax*kmax+v*kmax+k],mt[k*wmax+w],a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
-        # print 'x',x
         #First index is station, second is locaton sample, last is MT sample
         if ipmax==1:
             ln_P[index]+=log(pol_pdf(x,sigma[u],incorrect_polarity_prob[0]))
         else:
             ln_P[index]+=log(pol_pdf(x,sigma[u],incorrect_polarity_prob[u]))
-        # print 'P',ln_P[index]
 
         if ln_P[index]==-inf:
-            return 
+            return
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
 cdef void station_polarity_probability_ln_pdf(DTYPE_t*a,DTYPE_t*mt,DTYPE_t*ln_P,DTYPE_t*positive_probability,DTYPE_t*negative_probability,DTYPE_t*incorrect_polarity_prob,Py_ssize_t ipmax,Py_ssize_t v,Py_ssize_t umax,Py_ssize_t vmax,Py_ssize_t kmax,Py_ssize_t wmax,Py_ssize_t w,Py_ssize_t index) nogil:
     cdef DTYPE_t x=0.0
-    for u from 0<=u<umax:
+    for u in range(umax):
         x=0
-        for k from 0<=k<kmax:# loop over num mt samples and make x
-            x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]               #First index is station, second is locaton sample, last is MT sample
+        for k in range(kmax):
+            x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
         if ipmax==1:
             ln_P[index]+=log(pol_prob_pdf(x,positive_probability[u],negative_probability[u],incorrect_polarity_prob[0]))
         else:
             ln_P[index]+=log(pol_prob_pdf(x,positive_probability[u],negative_probability[u],incorrect_polarity_prob[u]))
         if ln_P[index]==-inf:
-            return 
+            return
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -297,18 +286,16 @@ cdef void station_polarity_probability_ln_pdf(DTYPE_t*a,DTYPE_t*mt,DTYPE_t*ln_P,
 cdef void station_ar_ln_pdf(DTYPE_t*ax,DTYPE_t*ay,DTYPE_t*mt,DTYPE_t*ln_P,DTYPE_t*z,DTYPE_t*psx,DTYPE_t*psy,Py_ssize_t v,Py_ssize_t umax,Py_ssize_t vmax,Py_ssize_t kmax,Py_ssize_t wmax,Py_ssize_t w,Py_ssize_t index) nogil:
     cdef DTYPE_t mux=0.0
     cdef DTYPE_t muy=0.0
-    # print '---------'
-    for u from 0<=u<umax:
+    for u in range(umax):
         mux=0
         muy=0
-        for k from 0<=k<kmax:# loop over num mt samples and make x
+        for k in range(kmax):
             mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
             muy+=ay[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
         #First index is station, second is locaton sample, last is MT sample
         ln_P[index]+=log(ar_pdf(z[u],mux,muy,psx[u],psy[u]))
-        # print ln_P[index]
         if ln_P[index]==-inf:
-            return 
+            return
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -322,14 +309,12 @@ cdef void station_combined_polarity_ar_ln_pdf(DTYPE_t*a,DTYPE_t*ax,DTYPE_t*ay,DT
     if umax>uarmax:
         utmax=umax
         utmin=uarmax
-    # print '----------'
-        # print 'P',ln_P[index]
-    for u from 0<=u<utmax:
+    for u in range(utmax):
         if u<utmin:#both
             x=0.
             mux=0.
             muy=0.
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):
                 x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 muy+=ay[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
@@ -337,30 +322,26 @@ cdef void station_combined_polarity_ar_ln_pdf(DTYPE_t*a,DTYPE_t*ax,DTYPE_t*ay,DT
                 ln_P[index]+=log(pol_pdf(x,sigma[u],incorrect_polarity_prob[0]))+log(ar_pdf(z[u],mux,muy,psx[u],psy[u]))
             else:
                 ln_P[index]+=log(pol_pdf(x,sigma[u],incorrect_polarity_prob[u]))+log(ar_pdf(z[u],mux,muy,psx[u],psy[u]))
-            # print 'b',x,mux,muy,sigma[u],z[u],psx[u],psy[u],'=',ln_P[index]
         elif u>=umax:#Only AR
             mux=0.
             muy=0.
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):
                 mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 muy+=ay[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
             if ipmax==1:
                 ln_P[index]+=log(ar_pdf(z[u],mux,muy,psx[u],psy[u]))
             else:
                 ln_P[index]+=log(ar_pdf(z[u],mux,muy,psx[u],psy[u]))
-            # print 'ar',mux,muy,z[u],psx[u],psy[u],'=',ln_P[index]
         else: #only Pol
             x=0.
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):
                 x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
             if ipmax==1:
                 ln_P[index]+=log(pol_pdf(x,sigma[u],incorrect_polarity_prob[0]))
             else:
                 ln_P[index]+=log(pol_pdf(x,sigma[u],incorrect_polarity_prob[u]))
-            # print 'p',x,sigma[u],'=',ln_P[index]
-        # print 'P',ln_P[index]
         if ln_P[index]==-inf:
-            return 
+            return
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -374,16 +355,15 @@ cdef void station_combined_polarity_probability_ar_ln_pdf(DTYPE_t*a,DTYPE_t*ax,D
     if umax>uarmax:
         utmax=umax
         utmin=uarmax
-    for u from 0<=u<utmax:
+    for u in range(utmax):
         if u<utmin:#both
             x=0
             mux=0
             muy=0
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):
                 x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 muy+=ay[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
-            #First index is station, second is locaton sample, last is MT sample
             if ipmax==1:
                 ln_P[index]+=log(pol_prob_pdf(x,positive_probability[u],negative_probability[u],incorrect_polarity_prob[0]))+log(ar_pdf(z[u],mux,muy,psx[u],psy[u]))
             else:
@@ -391,23 +371,23 @@ cdef void station_combined_polarity_probability_ar_ln_pdf(DTYPE_t*a,DTYPE_t*ax,D
         elif u>=umax:#Only AR
             mux=0.
             muy=0.
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):
                 mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 muy+=ay[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
             if ipmax==1:
                 ln_P[index]+=log(ar_pdf(z[u],mux,muy,psx[u],psy[u]))
             else:
-                ln_P[index]+=log(ar_pdf(z[u],mux,muy,psx[u],psy[u]))   
+                ln_P[index]+=log(ar_pdf(z[u],mux,muy,psx[u],psy[u]))
         else: #only Polprob
             x=0.
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):
                 x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
             if ipmax==1:
                 ln_P[index]+=log(pol_prob_pdf(x,positive_probability[u],negative_probability[u],incorrect_polarity_prob[0]))
             else:
-                ln_P[index]+=log(pol_prob_pdf(x,positive_probability[u],negative_probability[u],incorrect_polarity_prob[u]))   
+                ln_P[index]+=log(pol_prob_pdf(x,positive_probability[u],negative_probability[u],incorrect_polarity_prob[u]))
         if ln_P[index]==-inf:
-            return 
+            return
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -426,13 +406,13 @@ cdef void station_combined_all_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*ax,DTYPE_
         utmin=uprobmax
     if uprobmax>utmax:
         utmax=uprobmax
-    for u from 0<=u<utmax:
+    for u in range(utmax):
         if u<utmin:#all
             x=0
             x1=0
             mux=0
             muy=0
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):# loop over num mt samples and make x
                 x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 x1+=a_prob[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
@@ -446,7 +426,7 @@ cdef void station_combined_all_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*ax,DTYPE_
             if u>=uprobmax:#AR Only
                 mux=0.
                 muy=0.
-                for k from 0<=k<kmax:# loop over num mt samples and make x
+                for k in range(kmax):# loop over num mt samples and make x
                     mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                     muy+=ay[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 if ipmax==1:
@@ -457,7 +437,7 @@ cdef void station_combined_all_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*ax,DTYPE_
                 x1=0
                 mux=0
                 muy=0
-                for k from 0<=k<kmax:# loop over num mt samples and make x
+                for k in range(kmax):# loop over num mt samples and make x
                     x1+=a_prob[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                     mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                     muy+=ay[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
@@ -470,7 +450,7 @@ cdef void station_combined_all_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*ax,DTYPE_
             if u>=umax:#AR Only
                 mux=0.
                 muy=0.
-                for k from 0<=k<kmax:# loop over num mt samples and make x
+                for k in range(kmax):# loop over num mt samples and make x
                     mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                     muy+=ay[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 if ipmax==1:
@@ -481,7 +461,7 @@ cdef void station_combined_all_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*ax,DTYPE_
                 x1=0
                 mux=0
                 muy=0
-                for k from 0<=k<kmax:# loop over num mt samples and make x
+                for k in range(kmax):# loop over num mt samples and make x
                     x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                     mux+=ax[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                     muy+=ay[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
@@ -493,7 +473,7 @@ cdef void station_combined_all_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*ax,DTYPE_
         else:#Pol prob +pol?
             if u>=uprobmax:#Pol Only
                 x=0.
-                for k from 0<=k<kmax:# loop over num mt samples and make x
+                for k in range(kmax):# loop over num mt samples and make x
                     x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 if ipmax==1:
                     ln_P[index]+=log(pol_pdf(x,sigma[u],incorrect_polarity_prob[0]))
@@ -502,7 +482,7 @@ cdef void station_combined_all_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*ax,DTYPE_
             else:#Pol +pol prob
                 x1=0.
                 x=0.
-                for k from 0<=k<kmax:# loop over num mt samples and make x
+                for k in range(kmax):# loop over num mt samples and make x
                     x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                     x1+=a_prob[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 #First index is station, second is locaton sample, last is MT sample
@@ -527,13 +507,13 @@ cdef void station_combined_pol_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*mt,DTYPE_
         utmax=umax
         utmin=uprobmax
         utmax=uprobmax
-    for u from 0<=u<utmax:
+    for u in range(utmax):
         if u<utmin:#all
             x=0
             x1=0
             mux=0
             muy=0
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):# loop over num mt samples and make x
                 x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
                 x1+=a_prob[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
             #First index is station, second is locaton sample, last is MT sample
@@ -543,7 +523,7 @@ cdef void station_combined_pol_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*mt,DTYPE_
                 ln_P[index]+=log(pol_pdf(x,sigma[u],incorrect_polarity_prob[u]))+log(pol_prob_pdf(x1,positive_probability[u],negative_probability[u],incorrect_polarity_prob[u]))
         elif u>=umax:#Pol prob
             x1=0
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):# loop over num mt samples and make x
                 x1+=a_prob[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
             #First index is station, second is locaton sample, last is MT sample
             if ipmax==1:
@@ -552,7 +532,7 @@ cdef void station_combined_pol_ln_pdf(DTYPE_t*a,DTYPE_t*a_prob,DTYPE_t*mt,DTYPE_
                 ln_P[index]+=log(pol_prob_pdf(x1,positive_probability[u],negative_probability[u],incorrect_polarity_prob[u]))
         else:#Pol 
             x=0.
-            for k from 0<=k<kmax:# loop over num mt samples and make x
+            for k in range(kmax):# loop over num mt samples and make x
                 x+=a[u*vmax*kmax+v*kmax+k]*mt[k*wmax+w]
             if ipmax==1:
                 ln_P[index]+=log(pol_pdf(x,sigma[u],incorrect_polarity_prob[0]))
@@ -589,23 +569,23 @@ cdef void c_polarity_ln_pdf(DTYPE_t*ln_P,DTYPE_t[:,:,::1] a_arr, DTYPE_t [:,::1]
     cdef DTYPE_t max_ln_p_loc=-inf
     cdef Py_ssize_t u,v,w,k
     cdef DTYPE_t x=0.0
-    for w from 0<=w<wmax:
+    for w in range(wmax):
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_polarity_ln_pdf(&a[0,0,0],&mt[0,0],&ln_P_loc_samples[0],&sigma[0],&incorrect_polarity_prob[0],ipmax,v,umax,vmax,kmax,wmax,w,v)
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
             else:
                 ln_P[w]=-inf
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_polarity_ln_pdf(&a[0,0,0],&mt[0,0],&ln_P[00],&sigma[0],&incorrect_polarity_prob[0], ipmax, v, umax,vmax,kmax,wmax, w, v*wmax+w)
 
@@ -634,23 +614,23 @@ cdef void c_polarity_probability_ln_pdf(DTYPE_t*ln_P,DTYPE_t[:,:,::1]  a_arr, DT
     cdef Py_ssize_t u,v,w,k
     cdef DTYPE_t max_ln_p_loc=-inf
     ## log(location_samples_multiplier) is  ln_P_loc_samples initialisation
-    for w from 0<=w<wmax:
+    for w in range(wmax):
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_polarity_probability_ln_pdf(&a[0,0,0],&mt[0,0],&ln_P_loc_samples[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],ipmax,v,umax,vmax,kmax,wmax,w,v)
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
             else:
                 ln_P[w]=-inf
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_polarity_probability_ln_pdf(&a[0,0,0],&mt[0,0],&ln_P[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],ipmax,v,umax,vmax,kmax,wmax,w,v*wmax+w)
 
@@ -678,23 +658,23 @@ cdef void c_amplitude_ratio_ln_pdf(DTYPE_t*ln_P,DTYPE_t[::1]  z_arr, DTYPE_t [:,
     cdef DTYPE_t[::1]psy=psy_arr
     cdef Py_ssize_t u,v,w,k
     cdef DTYPE_t max_ln_p_loc=-inf
-    for w from 0<=w<wmax:
+    for w in range(wmax):
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_ar_ln_pdf(&ax[0,0,0],&ay[0,0,0],&mt[0,0],&ln_P_loc_samples[0],&z[0],&psx[0],&psy[0],v,umax,vmax,kmax,wmax,w,v)
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
             else:
                 ln_P[w]=-inf
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_ar_ln_pdf(&ax[0,0,0],&ay[0,0,0],&mt[0,0],&ln_P[0],&z[0],&psx[0],&psy[0],  v, umax,vmax,kmax,wmax, w, v*wmax+w)
 
@@ -724,23 +704,23 @@ cdef void c_polarity_prob_combined_ln_pdf(DTYPE_t* ln_P,DTYPE_t[:,:,::1] a_arr, 
     cdef DTYPE_t[::1]incorrect_polarity_prob=incorrect_polarity_prob_arr
     cdef Py_ssize_t u,v,w,k
     cdef DTYPE_t max_ln_p_loc=-inf
-    for w from 0<=w<wmax:
+    for w in range(wmax):
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_combined_polarity_probability_ar_ln_pdf(&a[0,0,0],&ax[0,0,0],&ay[0,0,0],&mt[0,0],&ln_P_loc_samples[0],&z[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&psx[0],&psy[0], ipmax, v, umax,uarmax,vmax,kmax,wmax, w, v) 
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
             else:
                 ln_P[w]=-inf
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_combined_polarity_probability_ar_ln_pdf(&a[0,0,0],&ax[0,0,0],&ay[0,0,0],&mt[0,0],&ln_P[0],&z[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&psx[0],&psy[0], ipmax, v, umax,uarmax,vmax,kmax,wmax, w, v*wmax+w) 
 
@@ -764,29 +744,22 @@ cdef void c_polarity_ar_ln_pdf(DTYPE_t*ln_P,DTYPE_t[:,:,::1] a_arr,  DTYPE_t [:,
     cdef DTYPE_t[::1]psy=psy_arr
     cdef DTYPE_t[::1]incorrect_polarity_prob=incorrect_polarity_prob_arr
     cdef DTYPE_t max_ln_p_loc=-inf
-    # print umax,uarmax
-    for w from 0<=w<wmax:
-        # if vmax==1:
-        #     ln_P[0*wmax+w]=location_samples_multiplier[0]
-        #     station_combined_polarity_ar_ln_pdf(&a[0,0,0],&ax[0,0,0],&ay[0,0,0],&mt[0,0],&ln_P[0],&z[0],&sigma[0],&incorrect_polarity_prob[0],&psx[0],&psy[0], ipmax, v, umax,uarmax,vmax,kmax,wmax, w, v*wmax+w)
-        # el
+    for w in range(wmax):
         if marginalised>0:
             max_ln_p_loc=-inf
-            #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_combined_polarity_ar_ln_pdf(&a[0,0,0],&ax[0,0,0],&ay[0,0,0],&mt[0,0],&ln_P_loc_samples[0],&z[0],&sigma[0],&incorrect_polarity_prob[0],&psx[0],&psy[0], ipmax, v, umax,uarmax,vmax,kmax,wmax, w, v)
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
-                # print max_ln_p_loc
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
             else:
                 ln_P[w]=-inf
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_combined_polarity_ar_ln_pdf(&a[0,0,0],&ax[0,0,0],&ay[0,0,0],&mt[0,0],&ln_P[0],&z[0],&sigma[0],&incorrect_polarity_prob[0],&psx[0],&psy[0], ipmax, v, umax,uarmax,vmax,kmax,wmax, w, v*wmax+w)
 
@@ -815,23 +788,23 @@ cdef void c_all_combined_ln_pdf(DTYPE_t* ln_P,DTYPE_t[:,:,::1] a_arr, DTYPE_t [:
     cdef DTYPE_t[::1]incorrect_polarity_prob=incorrect_polarity_prob_arr
     cdef Py_ssize_t u,v,w,k
     cdef DTYPE_t max_ln_p_loc=-inf
-    for w from 0<=w<wmax:
+    for w in range(wmax):
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_combined_all_ln_pdf(&a[0,0,0],&a_prob[0,0,0],&ax[0,0,0],&ay[0,0,0],&mt[0,0],&ln_P_loc_samples[0],&z[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&psx[0],&psy[0],&sigma[0], ipmax, v, umax,uarmax,uprobmax,vmax,kmax,wmax, w, v) 
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
             else:
                 ln_P[w]=-inf
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_combined_all_ln_pdf(&a[0,0,0],&a_prob[0,0,0],&ax[0,0,0],&ay[0,0,0],&mt[0,0],&ln_P[0],&z[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&psx[0],&psy[0],&sigma[0], ipmax, v, umax,uarmax,uprobmax,vmax,kmax,wmax, w, v*wmax+w) 
 
@@ -854,23 +827,23 @@ cdef void c_combined_pol_ln_pdf(DTYPE_t* ln_P,DTYPE_t[:,:,::1] a_arr, DTYPE_t [:
     cdef DTYPE_t[::1]incorrect_polarity_prob=incorrect_polarity_prob_arr
     cdef Py_ssize_t u,v,w,k
     cdef DTYPE_t max_ln_p_loc=-inf
-    for w from 0<=w<wmax:
+    for w in range(wmax):
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_combined_pol_ln_pdf(&a[0,0,0],&a_prob[0,0,0],&mt[0,0],&ln_P_loc_samples[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&sigma[0], ipmax, v, umax,uprobmax,vmax,kmax,wmax, w, v) 
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
             else:
                 ln_P[w]=-inf
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_combined_pol_ln_pdf(&a[0,0,0],&a_prob[0,0,0],&mt[0,0],&ln_P[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&sigma[0], ipmax, v, umax,uprobmax,vmax,kmax,wmax, w, v*wmax+w) 
 
@@ -893,7 +866,6 @@ cdef void c_polarity_ln_pdf_gen(DTYPE_t*ln_P,DTYPE_t[:,:,::1] a_arr, DTYPE_t * m
     #cdefs
     cdef Py_ssize_t umax=a_arr.shape[0]#Station Sample
     cdef Py_ssize_t vmax=a_arr.shape[1]#Location Sample
-    # cdef Py_ssize_t wmax=mt.shape[1]#MT samples
     cdef Py_ssize_t tmax=wmax*4#MT test samples
     cdef Py_ssize_t kmax=a_arr.shape[2]#MT elementssamples
     cdef Py_ssize_t ipmax=incorrect_polarity_prob_arr.shape[0]#MT elementssamples
@@ -927,25 +899,25 @@ cdef void c_polarity_ln_pdf_gen(DTYPE_t*ln_P,DTYPE_t[:,:,::1] a_arr, DTYPE_t * m
         ok=False
         if marginalised>0:
             max_ln_p_loc=-inf
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_polarity_ln_pdf(&a[0,0,0],&test_mt[0,0],&ln_P_loc_samples[0],&sigma[0],&incorrect_polarity_prob[0],ipmax,v,umax,vmax,kmax,tmax,t,v)
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
                 if ln_P[w]>-inf:
                     ok=True
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_polarity_ln_pdf(&a[0,0,0],&test_mt[0,0],&ln_P[0],&sigma[0],&incorrect_polarity_prob[0], ipmax, v, umax,vmax,kmax,tmax, t, v*wmax+w)
                 if ln_P[v*wmax+w]>-inf:
                     ok=True
         if ok:
-            for k from 0<=k<kmax:
+            for k in range(kmax):
                 mt[k*wmax+w]=test_mt[k,t]
             w+=1
         t+=1
@@ -1001,25 +973,25 @@ cdef void c_polarity_probability_ln_pdf_gen(DTYPE_t*ln_P,DTYPE_t[:,:,::1]  a_arr
         ok=False
         if marginalised>0:
             max_ln_p_loc=-inf
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_polarity_probability_ln_pdf(&a[0,0,0],&test_mt[0,0],&ln_P_loc_samples[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],ipmax,v,umax,vmax,kmax,tmax,t,v)
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
                 if ln_P[w]>-inf:
                     ok=True
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]  
                 station_polarity_probability_ln_pdf(&a[0,0,0],&test_mt[0,0],&ln_P[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],ipmax,v,umax,vmax,kmax,tmax,t,v*wmax+w)
                 if ln_P[v*wmax+w]>-inf:
                     ok=True
         if ok:
-            for k from 0<=k<kmax:
+            for k in range(kmax):
                 mt[k*wmax+w]=test_mt[k,t]
             w+=1
         t+=1
@@ -1041,7 +1013,6 @@ cdef void c_amplitude_ratio_ln_pdf_gen(DTYPE_t* ln_P,DTYPE_t[::1]  z_arr, DTYPE_
     #cdefs    
     cdef Py_ssize_t umax=ax_arr.shape[0]#Station Sample
     cdef Py_ssize_t vmax=ax_arr.shape[1]#Location Sample
-    # cdef Py_ssize_t wmax=mt.shape[1]#MT samples
     cdef Py_ssize_t tmax=wmax*4#MT test samples
     cdef Py_ssize_t kmax=ax_arr.shape[2]#MT elementssamples
     cdef Py_ssize_t u,v,w,k,t
@@ -1079,25 +1050,25 @@ cdef void c_amplitude_ratio_ln_pdf_gen(DTYPE_t* ln_P,DTYPE_t[::1]  z_arr, DTYPE_
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_ar_ln_pdf(&ax[0,0,0],&ay[0,0,0],&test_mt[0,0],&ln_P_loc_samples[0],&z[0],&psx[0],&psy[0],v,umax,vmax,kmax,tmax,t,v)
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
                 if ln_P[w]>-inf:
                     ok=True
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]            
                 station_ar_ln_pdf(&ax[0,0,0],&ay[0,0,0],&test_mt[0,0],&ln_P[0],&z[0],&psx[0],&psy[0],  v, umax,vmax,kmax,tmax, t, v*wmax+w)   
                 if  ln_P[v*wmax+w]>-inf:
                     ok=True
         if ok:
-            for k from 0<=k<kmax:
+            for k in range(kmax):
                 mt[k*wmax+w]=test_mt[k,t]
             w+=1
         t+=1
@@ -1116,7 +1087,6 @@ cdef void c_polarity_prob_combined_ln_pdf_gen(DTYPE_t*ln_P,DTYPE_t[:,:,::1] a_ar
     cdef Py_ssize_t umax=a_arr.shape[0]#Station Sample
     cdef Py_ssize_t uarmax=ax_arr.shape[0]#Station Sample AR
     cdef Py_ssize_t vmax=a_arr.shape[1]#Location Sample
-    # cdef Py_ssize_t wmax=mt.shape[1]#MT samples
     cdef Py_ssize_t tmax=wmax*4#MT test samples
     cdef Py_ssize_t kmax=a_arr.shape[2]#MT elementssamples
     cdef Py_ssize_t ipmax=incorrect_polarity_prob_arr.shape[0]
@@ -1159,26 +1129,26 @@ cdef void c_polarity_prob_combined_ln_pdf_gen(DTYPE_t*ln_P,DTYPE_t[:,:,::1] a_ar
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_combined_polarity_probability_ar_ln_pdf(&a[0,0,0],&ax[0,0,0],&ay[0,0,0],&test_mt[0,0],&ln_P_loc_samples[0],&z[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&psx[0],&psy[0], ipmax, v, umax,uarmax,vmax,kmax,tmax, t, v) 
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
                 if ln_P[w]>-inf:
                     ok=True
 
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_combined_polarity_probability_ar_ln_pdf(&a[0,0,0],&ax[0,0,0],&ay[0,0,0],&test_mt[0,0],&ln_P[0],&z[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&psx[0],&psy[0], ipmax, v, umax,uarmax,vmax,kmax,tmax, t, v*wmax+w) 
                 if ln_P[v*wmax+w]>-inf:
                     ok=True
         if ok:
-            for k from 0<=k<kmax:
+            for k in range(kmax):
                 mt[k*wmax+w]=test_mt[k,t]
             w+=1
         t+=1
@@ -1194,10 +1164,8 @@ cdef void c_polarity_ar_ln_pdf_gen(DTYPE_t*ln_P,DTYPE_t[:,:,::1] a_arr, DTYPE_t 
     cdef Py_ssize_t vmax=a_arr.shape[1]#Location Sample
     cdef Py_ssize_t kmax=a_arr.shape[2]#MT elementssamples
     cdef Py_ssize_t tmax=wmax*4#MT test samples
-    # cdef Py_ssize_t wmax=mt.shape[1]#MT samples
     cdef Py_ssize_t ipmax=incorrect_polarity_prob_arr.shape[0]
     cdef Py_ssize_t u,v,w,k,t
-    # cdef DTYPE_t[:,:,::1]  ln_P=np.zeros((umax,vmax,wmax)) 
     cdef DTYPE_t x=0.0
     cdef DTYPE_t mux=0.0
     cdef DTYPE_t muy=0.0
@@ -1235,25 +1203,25 @@ cdef void c_polarity_ar_ln_pdf_gen(DTYPE_t*ln_P,DTYPE_t[:,:,::1] a_arr, DTYPE_t 
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_combined_polarity_ar_ln_pdf(&a[0,0,0],&ax[0,0,0],&ay[0,0,0],&test_mt[0,0],&ln_P_loc_samples[0],&z[0],&sigma[0],&incorrect_polarity_prob[0],&psx[0],&psy[0], ipmax, v, umax,uarmax,vmax,kmax,tmax, t, v)
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
                 if ln_P[w]>-inf:
                     ok=True
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_combined_polarity_ar_ln_pdf(&a[0,0,0],&ax[0,0,0],&ay[0,0,0],&test_mt[0,0],&ln_P[0],&z[0],&sigma[0],&incorrect_polarity_prob[0],&psx[0],&psy[0], ipmax, v, umax,uarmax,vmax,kmax,tmax, t, v*wmax+w)
                 if ln_P[v*wmax+w]>-inf:
                     ok=True
         if ok:
-            for k from 0<=k<kmax:
+            for k in range(kmax):
                 mt[k*wmax+w]=test_mt[k,t]
             w+=1
         t+=1
@@ -1308,25 +1276,25 @@ cdef void c_all_combined_ln_pdf_gen(DTYPE_t* ln_P,DTYPE_t[:,:,::1] a_arr,DTYPE_t
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_combined_all_ln_pdf(&a[0,0,0],&a_prob[0,0,0],&ax[0,0,0],&ay[0,0,0],&test_mt[0,0],&ln_P_loc_samples[0],&z[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&psx[0],&psy[0],&sigma[0], ipmax, v, umax,uarmax,uprobmax,vmax,kmax,wmax, w, v) 
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
                 if ln_P[w]>-inf:
                     ok=True
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_combined_all_ln_pdf(&a[0,0,0],&a_prob[0,0,0],&ax[0,0,0],&ay[0,0,0],&test_mt[0,0],&ln_P[0],&z[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&psx[0],&psy[0],&sigma[0], ipmax, v, umax,uarmax,uprobmax,vmax,kmax,wmax, w, v*wmax+w) 
                 if ln_P[v*wmax+w]>-inf:
                     ok=True
         if ok:
-            for k from 0<=k<kmax:
+            for k in range(kmax):
                 mt[k*wmax+w]=test_mt[k,t]
             w+=1
         t+=1
@@ -1375,25 +1343,25 @@ cdef void c_combined_pol_ln_pdf_gen(DTYPE_t* ln_P,DTYPE_t[:,:,::1] a_arr,DTYPE_t
         if marginalised>0:
             max_ln_p_loc=-inf
             #loc_samples_multiplier
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P_loc_samples[v]=location_samples_multiplier[v]
                 station_combined_pol_ln_pdf(&a[0,0,0],&a_prob[0,0,0],&test_mt[0,0],&ln_P_loc_samples[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&sigma[0], ipmax, v, umax,uprobmax,vmax,kmax,wmax, w, v) 
                 max_ln_p_loc=fmax(max_ln_p_loc,ln_P_loc_samples[v])
             if max_ln_p_loc>-inf:
                 ln_P[w]=0.0
-                for v from 0<=v<vmax:
+                for v in range(vmax):
                     ln_P[w]+=exp(ln_P_loc_samples[v]-max_ln_p_loc)
                 ln_P[w]=log(ln_P[w])+max_ln_p_loc
                 if ln_P[w]>-inf:
                     ok=True
         else:
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 ln_P[v*wmax+w]=location_samples_multiplier[v]
                 station_combined_pol_ln_pdf(&a[0,0,0],&a_prob[0,0,0],&test_mt[0,0],&ln_P[0],&positive_probability[0],&negative_probability[0],&incorrect_polarity_prob[0],&sigma[0], ipmax, v, umax,uprobmax,vmax,kmax,wmax, w, v*wmax+w) 
                 if ln_P[v*wmax+w]>-inf:
                     ok=True
         if ok:
-            for k from 0<=k<kmax:
+            for k in range(kmax):
                 mt[k*wmax+w]=test_mt[k,t]
             w+=1
         t+=1
@@ -1686,12 +1654,12 @@ cpdef scale_estimator(DTYPE_t[::1]  x,DTYPE_t[::1] y,   DTYPE_t [:,::1] mt1,DTYP
     cdef DTYPE_t[:,::1]  s=np.empty((vmax,wmax)) 
     cdef DTYPE_t[::1] mux=np.empty((umax))
     cdef DTYPE_t[::1] muy=np.empty((umax))
-    for v from 0<=v<vmax:
-        for w from 0<=w<wmax:
-            for u from 0<=u<umax:
+    for v in range(vmax):
+        for w in range(wmax):
+            for u in range(umax):
                 mux[u]=0
                 muy[u]=0
-                for k from 0<=k<kmax:# loop over num mt samples and make x
+                for k in range(kmax):# loop over num mt samples and make x
                     mux[u]+=a[u,v,k]*mt1[k,w]
                     muy[u]+=a[u,v,k]*mt2[k,w]
                 estimate_scale_mu_s(&mu1, &s1, x[u],y[u],mux[u],muy[u],psx[u],psy[u])
@@ -1730,24 +1698,22 @@ cpdef relative_amplitude_ratio_ln_pdf(DTYPE_t[::1]  x,DTYPE_t[::1] y,  DTYPE_t [
     cdef DTYPE_t [::1]mux=np.empty((umax))
     cdef DTYPE_t [::1]muy=np.empty((umax))
     #First index is station, second is locaton sample, last is MT sample
-    for v from 0<=v<vmax:
-        for w from 0<=w<wmax:
-            for u from 0<=u<umax:
+    for v in range(vmax):
+        for w in range(wmax):
+            for u in range(umax):
                 mux[u]=0
                 muy[u]=0
-                for k from 0<=k<kmax:# loop over num mt samples and make x
+                for k in range(kmax):# loop over num mt samples and make x
                     mux[u]+=a1[u,v,k]*mt1[k,w]
                     muy[u]+=a2[u,v,k]*mt2[k,w]
                 estimate_scale_mu_s(&mu1, &s1, x[u],y[u],mux[u],muy[u],psx[u],psy[u])
-                # print 's',s1
                 if u==0:
                     mu[v,w]=mu1
                     s[v,w]=s1
                 else:
                     mu[v,w]=combine_mu(mu[v,w],mu1,s[v,w],s1)
                     s[v,w]=combine_s(s[v,w],s1)
-                # print mu[v,w],s[v,w]
-            for u from 0<=u<umax:
+            for u in range(umax):
                 if np.isnan(s[v,w]):
                     ln_P[u,v,w]=-inf
                 else:
@@ -1764,10 +1730,10 @@ cpdef ln_prod(DTYPE_t[:,:,::1] p):
     cdef Py_ssize_t wmax=p.shape[2]
     cdef DTYPE_t[:,::1] Ln_P=np.empty((vmax,wmax)) 
     cdef Py_ssize_t u,v,w
-    for v from 0<=v<vmax:
-        for w from 0<=w<wmax:
+    for v in range(vmax):
+        for w in range(wmax):
             Ln_P[v,w]=0
-            for u from 0<=u<umax:
+            for u in range(umax):
                 Ln_P[v,w]+=(p[u,v,w])
     return np.asarray(Ln_P)
 
@@ -1779,8 +1745,8 @@ cpdef ln_combine(DTYPE_t[:,::1] ln_p_1,DTYPE_t[:,::1] ln_p_2):
     cdef Py_ssize_t vmax=ln_p_1.shape[0]
     cdef Py_ssize_t wmax=ln_p_1.shape[1]
     cdef Py_ssize_t v,w
-    for w from 0<=w<wmax:
-        for v from 0<=v<vmax:
+    for w in range(wmax):
+        for v in range(vmax):
             ln_p_1[v,w]+=ln_p_2[v,w]
     return np.asarray(ln_p_1)
 
@@ -1792,8 +1758,8 @@ cpdef ln_multipliers(DTYPE_t[:,::1] ln_p, DTYPE_t[::1] multipliers):
     cdef Py_ssize_t vmax=ln_p.shape[0]
     cdef Py_ssize_t wmax=ln_p.shape[1]
     cdef Py_ssize_t v,w
-    for w from 0<=w<wmax:
-        for v from 0<=v<vmax:
+    for w in range(wmax):
+        for v in range(vmax):
             ln_p[v,w]+=log(multipliers[v])
     return np.asarray(ln_p)
 
@@ -1804,7 +1770,7 @@ cpdef ln_non_zero(DTYPE_t[:] ln_p):
     cdef Py_ssize_t vmax=ln_p.shape[0]
     cdef Py_ssize_t v
     cdef int[::1] non_zero=np.empty((vmax))
-    for v from 0<=v<vmax:
+    for v in range(vmax):
         if ln_p[v]>-np.inf:
             non_zero[v]=1
         else:
@@ -1818,7 +1784,7 @@ cpdef ln_exp(DTYPE_t[::1] ln_p, DTYPE_t dV=1):
     cdef Py_ssize_t wmax=ln_p.shape[1]
     cdef Py_ssize_t w
     cdef DTYPE_t[::1] p =np.empty(wmax)
-    for w from 0<=w<wmax:
+    for w in range(wmax):
         p[w]=exp(ln_p[w])
     return np.asarray(p)
 
@@ -1829,13 +1795,13 @@ cpdef ln_exp(DTYPE_t[::1] ln_p, DTYPE_t dV=1):
 cdef void c_ln_normalise(DTYPE_t*ln_probability_p,DTYPE_t dV,Py_ssize_t n) nogil:
     cdef DTYPE_t norm=0.0
     cdef DTYPE_t max_ln_p=-inf
-    for i from 0<=i<n:
+    for i in range(n):
         if ln_probability_p[i]>max_ln_p: 
             max_ln_p=ln_probability_p[i]
-    for i from 0<=i<n:
+    for i in range(n):
         norm+=exp(ln_probability_p[i]-max_ln_p)
     norm*=dV
-    for i from 0<=i<n:
+    for i in range(n):
         ln_probability_p[i]-=log(norm)+max_ln_p
 
 @cython.boundscheck(False)
@@ -1845,7 +1811,7 @@ cdef void c_ln_normalise(DTYPE_t*ln_probability_p,DTYPE_t dV,Py_ssize_t n) nogil
 cdef DTYPE_t c_dkl(DTYPE_t*ln_probability_p,DTYPE_t*ln_probability_q,DTYPE_t dV,Py_ssize_t n) nogil:
     cdef DTYPE_t dkl=0.0
     cdef DTYPE_t p
-    for i from 0<=i<n:
+    for i in range(n):
         if ln_probability_p[i]>-inf:#Check no zeros in p 
             p=exp(ln_probability_p[i])
             dkl+=p*ln_probability_p[i]-p*ln_probability_q[i]
@@ -1871,7 +1837,7 @@ cdef DTYPE_t c_dkl_uniform(DTYPE_t*ln_probability_p,DTYPE_t V,DTYPE_t dV,Py_ssiz
     cdef DTYPE_t dkl=0.0
     cdef DTYPE_t p
     cdef DTYPE_t ln_V=log(V)
-    for i from 0<=i<n:
+    for i in range(n):
         if ln_probability_p[i]>-inf:#Check no zeros in p 
             p=exp(ln_probability_p[i])
             dkl+=p*ln_probability_p[i]+p*ln_V
@@ -1907,8 +1873,8 @@ cdef DTYPE_t randn() nogil:
 cpdef DTYPE_t[:,::1] randomn(int x,int y):
     cdef DTYPE_t[:,::1] R=np.empty((x,y))
     cdef Py_ssize_t i,j
-    for i from 0<=i<x:
-        for j from 0<=j<y:
+    for i in range(x):
+        for j in range(y):
             R[i,j]=randn()
     return R
 
@@ -1921,12 +1887,12 @@ cdef DTYPE_t[:,::1] rand_mt(int x):
     cdef DTYPE_t[:,::1] R=np.random.randn(6,x)
     cdef Py_ssize_t i,j
     cdef DTYPE_t N=0
-    for j from 0<=j<x:
+    for j in range(x):
         N=0
-        for i from 0<=i<6:
+        for i in range(6):
             N+=R[i,j]*R[i,j]
         N=sqrt(N)
-        for i from 0<=i<6:
+        for i in range(6):
             R[i,j]/=N
     return R
 
@@ -1943,7 +1909,7 @@ cdef DTYPE_t[:,::1] rand_dc(int x):
     cdef DTYPE_t s2k
     cdef DTYPE_t ss
     cdef DTYPE_t sh
-    for j from 0<=j<x:
+    for j in range(x):
         # h=ranf()
         # kappa=2*pi*ranf()
         # sigma=pi*(ranf()-0.5)
@@ -2049,7 +2015,6 @@ cpdef bin_angle_coefficient_samples(a_polarity,a1_amplitude_ratio,a2_amplitude_r
         polarity_prob=True
     else:
         a_polarity_prob=np.empty((0,0,0))
-    # print multipliers,bin_size,angles
     multipliers=np.asarray(get_angle_coeff_multipliers(a_polarity,a1_amplitude_ratio,a2_amplitude_ratio,a_polarity_prob,np.array(location_sample_multipliers,dtype=np.longlong),epsilon)).flatten()
     cdef Py_ssize_t i
     for i,record in enumerate(multipliers):
@@ -2096,13 +2061,13 @@ cpdef relative_amplitude_loop(DTYPE_t[:,::1] MT1,DTYPE_t[:,::1] MT2,DTYPE_t[:,:,
     cdef DTYPE_t[:,::1]  s=np.empty((umax,wmax)) 
     cdef DTYPE_t mui
     cdef DTYPE_t si
-    for u from 0<=u<umax:
-        for w from 0<=w<wmax:
+    for u in range(umax):
+        for w in range(wmax):
             ln_P[u,w]=0.0
-            for v from 0<=v<vmax:
+            for v in range(vmax):
                 x1=0.
                 x2=0.
-                for k from 0<=k<kmax:# loop over num mt samples and make x
+                for k in range(kmax):# loop over num mt samples and make x
                     x1+=a1[u,v,k]*MT1[k,w]
                     x2+=a2[u,v,k]*MT2[k,w]
                 estimate_scale_mu_s(&mui, &si, mu1[v],mu2[v],x1,x2,ps1[v],ps2[v])

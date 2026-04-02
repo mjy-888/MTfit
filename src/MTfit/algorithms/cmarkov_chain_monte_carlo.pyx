@@ -11,8 +11,7 @@
 cimport cython
 cimport numpy as np
 import numpy as np
-import unittest
-from cpython cimport bool
+np.import_array()
 from libc.stdlib cimport rand, RAND_MAX
 IF UNAME_SYSNAME == "Windows":
     from libc.math cimport HUGE_VAL as inf
@@ -188,9 +187,9 @@ cdef inline DTYPE_t flat_prior_ratio(DTYPE_t gamma,DTYPE_t delta,DTYPE_t g0,DTYP
 @cython.cdivision(True)
 cdef DTYPE_t new_gamma(DTYPE_t g0, DTYPE_t g_s):
     cdef DTYPE_t gamma
-    gamma=g_s*np.random.randn(1)+g0
+    gamma=g_s*np.random.randn(1).item()+g0
     while fabs(gamma)>pi/6:
-        gamma=g_s*np.random.randn(1)+g0
+        gamma=g_s*np.random.randn(1).item()+g0
     return gamma
 
 @cython.boundscheck(False)
@@ -199,9 +198,9 @@ cdef DTYPE_t new_gamma(DTYPE_t g0, DTYPE_t g_s):
 @cython.cdivision(True)
 cdef DTYPE_t new_delta(DTYPE_t d0, DTYPE_t d_s):
     cdef DTYPE_t delta
-    delta=d_s*np.random.randn(1)+d0
+    delta=d_s*np.random.randn(1).item()+d0
     while fabs(delta)>pi/2:
-        delta=d_s*np.random.randn(1)+d0
+        delta=d_s*np.random.randn(1).item()+d0
     return delta
 
 @cython.boundscheck(False)
@@ -209,7 +208,7 @@ cdef DTYPE_t new_delta(DTYPE_t d0, DTYPE_t d_s):
 @cython.nonecheck(False)
 @cython.cdivision(True)
 cdef DTYPE_t new_kappa(DTYPE_t k0, DTYPE_t k_s):
-    cdef DTYPE_t kn=k_s*np.random.randn(1)+k0
+    cdef DTYPE_t kn=k_s*np.random.randn(1).item()+k0
     if fabs(kn)<PI2:
         kn=fmod(kn,PI2)
     if kn<0.0:
@@ -222,9 +221,9 @@ cdef DTYPE_t new_kappa(DTYPE_t k0, DTYPE_t k_s):
 @cython.cdivision(True)
 cdef DTYPE_t new_h(DTYPE_t h0, DTYPE_t h_s):
     cdef DTYPE_t h
-    h=h_s*np.random.randn(1)+h0
+    h=h_s*np.random.randn(1).item()+h0
     while h>1 or h<0:
-        h=h_s*np.random.randn(1)+h0
+        h=h_s*np.random.randn(1).item()+h0
     return h
 
 @cython.boundscheck(False)
@@ -233,9 +232,9 @@ cdef DTYPE_t new_h(DTYPE_t h0, DTYPE_t h_s):
 @cython.cdivision(True)
 cdef DTYPE_t new_sigma(DTYPE_t s0, DTYPE_t s_s):
     cdef DTYPE_t sigma
-    sigma=s_s*np.random.randn(1)+s0
+    sigma=s_s*np.random.randn(1).item()+s0
     while fabs(sigma)>pi/2:
-        sigma=s_s*np.random.randn(1)+s0
+        sigma=s_s*np.random.randn(1).item()+s0
     return sigma
 
 @cython.boundscheck(False)
@@ -542,271 +541,7 @@ def new_samples(dict x0,dict alpha,Py_ssize_t number_samples, bool dc=False,DTYP
         M[5,u]=m[5,0]
     return x,np.asarray(M)
 
-# Test functions - Not Documented
-
-
-class _cmarkov_chain_monte_carlo_TestCase(unittest.TestCase):
-    def test_transition_ratios(self):
-        self.assertAlmostEqual(gaussian_transition_ratio(0.2,0.1,0.3,0.2,0.2,0.5,0.05,0.7,0.3,0.2,0.1,0.1),1.0011,4)
-        self.assertAlmostEqual(gaussian_transition_ratio(0.2,0.05,0.3,0.1, 0.2,0.5, 0.1,0.7, 0.3,0.2, 0.2,0.1),0.9989,4)
-        self.assertAlmostEqual(gaussian_transition_ratio(0.1,-0.5,0.2,0.6, 0.05,0.1,0.02,0.1, 0.6,0.2,0.1,0.1),1.1600,4)
-    def test_prior_ratios(self):
-        self.assertEqual(flat_prior_ratio(0,0,0,0),1.0)
-        self.assertEqual(flat_prior_ratio(0,21,0,0),1.0)
-        self.assertEqual(flat_prior_ratio(0,0,0,12),1.0)
-        self.assertEqual(flat_prior_ratio(0,0,2231,0),1.0)
-        self.assertEqual(uniform_prior_ratio(0,0,0,0),1.0)
-        self.assertAlmostEqual(uniform_prior_ratio(0,0,0.2,0.2),0.9382,3)
-        self.assertAlmostEqual(uniform_prior_ratio(0.2,0.2,0,0),1.0659,3)
-        self.assertAlmostEqual(uniform_prior_ratio(0,0,0.2,0.5),1.44127,3)
-        self.assertAlmostEqual(uniform_prior_ratio(0.3,0.1,0.2,0.5),1.226,3)
-    def test_erf(self):
-        import sys
-        if 'win' in sys.platform:
-            self.assertAlmostEqual(erf(2),0.9953,4)
-            self.assertAlmostEqual(erf(0.01),0.0113,4)
-            self.assertAlmostEqual(erf(-0.01),-0.0113,4)
-            self.assertAlmostEqual(erf(5),1.0000,4)
-    def test_convert_sample(self):
-        M=convert_sample(0.0,0.0,0.5,0.5,0.0)
-        self.assertTrue(M.flags['C_CONTIGUOUS'])
-        self.assertEqual(M.shape[0],6)
-        self.assertEqual(M.shape[1],1)
-    def test_c_acceptance_check(self):
-        x=[{'gamma':0.1,'delta':0.05,'h':0.4,'kappa':0.2,'sigma':-0.01},{'gamma':0.05,'delta':0.01,'h':0.45,'kappa':0.4,'sigma':-0.01}]
-        ln_p=np.array([0.,50.])
-        cdef Py_ssize_t umax=ln_p.shape[0]
-        cdef Py_ssize_t u
-        cdef DTYPE_t[::1] gamma=np.empty((umax))
-        cdef DTYPE_t[::1] delta=np.empty((umax))
-        cdef DTYPE_t[::1] h=np.empty((umax))
-        cdef DTYPE_t[::1] sigma=np.empty((umax))
-        cdef DTYPE_t[::1] kappa=np.empty((umax))   
-        cdef DTYPE_t[::1] qg=np.empty((umax))
-        cdef DTYPE_t[::1] qd=np.empty((umax))          
-        cdef transition_ratio_ptr transition_ratio_fn=&gaussian_transition_ratio
-        cdef prior_ratio_ptr prior_ratio_fn=&uniform_prior_ratio  
-        cdef jump_params_ptr jump_params_fn=&gaussian_jump_prob
-        cdef DTYPE_t g0=0.1
-        cdef DTYPE_t g_s=0.1
-        cdef DTYPE_t d0=0.05
-        cdef DTYPE_t d_s=0.1
-        cdef DTYPE_t h0=0.5
-        cdef DTYPE_t h_s=0.1
-        cdef DTYPE_t s0=0
-        cdef DTYPE_t s_s=0.1
-        cdef DTYPE_t k0=0.3
-        cdef DTYPE_t qg0=0.
-        cdef DTYPE_t qd0=0.
-        cdef DTYPE_t sg=0.1
-        cdef DTYPE_t sd=0.1
-        cdef int index
-        for u in range(umax):
-            gamma[u]=x[u]['gamma']
-            delta[u]=x[u]['delta']
-            kappa[u]=x[u]['kappa']
-            sigma[u]=x[u]['sigma']
-            h[u]=x[u]['h']
-            qg[u]=0.0;
-            qd[u]=0.0;
-
-        index=c_acceptance_check(transition_ratio_fn,prior_ratio_fn,jump_params_fn, gamma, delta, h, sigma,kappa, g0, g_s, d0, d_s, h0, h_s, s0, s_s,ln_p,15.,k0,qg,qd,sg,sd,1,0.5)
-        self.assertEqual(index,1)
-    def test_gaussian_jump_params(self):
-        [g,d]=gaussian_jump_params(0.01,0.01)
-        self.assertTrue(fabs(g)<pi/6)
-        self.assertTrue(fabs(d)<pi/2)
-    def test_flat_jump_params(self):
-        [g,d]=flat_jump_params(0.01,0.01)
-        self.assertTrue(fabs(g)<pi/6)
-        self.assertTrue(fabs(d)<pi/2)
-    def test_flat_jump_prob(self):
-        p=flat_jump_prob(0,0,1,1,1)
-        self.assertEqual(p,3/(PI2))
-        p=flat_jump_prob(3,1,2,4,1)
-        self.assertEqual(p,3/(PI2))
-    def test_gaussian_jump_prob(self):
-        p=gaussian_jump_prob(0,0,1,1,1)
-        self.assertEqual(p,gaussian_pdf(0,0,1)*gaussian_pdf(0,0,1))
-        p=gaussian_jump_prob(0.2,0.2,0.2,0.2,2)
-        self.assertEqual(p,gaussian_pdf(0.2,0,0.2)*gaussian_pdf(0.2,0,0.2)/2)
-    def test_new_samples(self):
-        x0={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': 0.0, 'delta': 0.0}
-        alpha={'gamma_dc': 0.10471975511965977, 'sigma_dc': 0.009085556327826677, 'kappa': 0.018171112655653354, 'delta_dc': 0.15707963267948966,
-         'h': 0.005784044801253858, 'h_dc': 0.005784044801253858, 'poisson': 0.005784044801253858, 'delta': 0.009085556327826677,
-          'alpha': 0.009085556327826677, 'kappa_dc': 0.018171112655653354, 'sigma': 0.009085556327826677, 'gamma': 0.00605703755188445,'proposal_normalisation':1.0}
-        x,M=new_samples(x0,alpha,2)
-        self.assertEqual(len(x),2)
-        self.assertEqual(M.shape[0],6)
-        self.assertEqual(M.shape[1],2)
-        self.assertTrue(M.flags['C_CONTIGUOUS'])
-        x,M=new_samples(x0,alpha,1)
-        self.assertEqual(len(x),1)
-        self.assertEqual(M.shape[0],6)
-        self.assertEqual(M.shape[1],1)
-        self.assertTrue(M.flags['C_CONTIGUOUS'])
-        x,M=new_samples(x0,alpha,1,True,1)
-        self.assertEqual(len(x),1)
-        self.assertEqual(M.shape[0],6)
-        self.assertEqual(M.shape[1],1)
-        self.assertTrue('gamma' in x[0].keys())
-        self.assertFalse('g0' in x[0].keys())
-        x0={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': 0.5, 'delta': 0.5}
-        x,M=new_samples(x0,alpha,1,False,1)
-        self.assertTrue('gamma' in x[0].keys())
-        self.assertTrue('g0' in x[0].keys())
-        self.assertTrue(M.flags['C_CONTIGUOUS'])
-    def test_acceptance_check(self):
-        x0={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': 0.0, 'delta': 0.0}
-        x1={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': .3, 'delta': 0.5}
-        alpha={'gamma_dc': 0.10471975511965977, 'sigma_dc': 0.009085556327826677, 'kappa': 0.018171112655653354, 'delta_dc': 0.15707963267948966,
-         'h': 0.005784044801253858, 'h_dc': 0.005784044801253858, 'poisson': 0.005784044801253858, 'delta': 0.009085556327826677,
-          'alpha': 0.009085556327826677, 'kappa_dc': 0.018171112655653354, 'sigma': 0.009085556327826677, 'gamma': 0.00605703755188445,'proposal_normalisation':1.0}
-        ln_p=np.array([5.0,3.0])
-        ln_p0=3.0
-        x=[x0,x1]
-        xi,ln_pi,i=acceptance_check(x,x0,alpha,ln_p,ln_p0,True,False)
-        self.assertEqual(i,0) 
-        self.assertEqual(x0,xi)
-        ln_p=np.array([-np.inf,3.0])
-        ln_p0=-np.inf
-        x=[x0,x1]
-        xi,ln_pi,i=acceptance_check(x,x0,alpha,ln_p,ln_p0,True,False)
-        self.assertEqual(i,1)
-        self.assertEqual(x1,xi)
-        #Tests for gaussian jump
-        x0={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': 0.0, 'delta': 0.0}
-        x1={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': .1, 'delta': 0.1}
-        alpha={'gamma_dc': 0.1, 'sigma_dc': 0.009085556327826677, 'kappa': 0.018171112655653354, 'delta_dc': 0.1,
-         'h': 0.005784044801253858, 'h_dc': 0.005784044801253858, 'poisson': 0.005784044801253858, 'delta': 0.009085556327826677,
-          'alpha': 0.009085556327826677, 'kappa_dc': 0.018171112655653354, 'sigma': 0.009085556327826677, 'gamma': 0.00605703755188445,'proposal_normalisation':0.99501231590631156}
-        ln_p=np.array([0.])
-        ln_p0=np.log(np.array([0.231]))
-        #dc to mt
-        xi,ln_pi,i=acceptance_check([x1],x0,alpha,ln_p,ln_p0,True,True)
-        self.assertTrue(len(xi)>0)
-        ln_p=np.array([-10000000000000000000000.])
-        ln_p0=np.array([100000000000000000000000000000000000000000000])
-        #dc to mt
-        xi,ln_pi,i=acceptance_check([x1],x0,alpha,ln_p,ln_p0,True,True)
-        self.assertEqual(len(xi),0)
-        ln_p=np.log(np.array([0.2321]))
-        ln_p0=np.array([0.])
-        #mt to dc
-        ln_p=np.array([0.2329])
-        xi,ln_pi,i=acceptance_check([x0],x1,alpha,ln_p,ln_p0,True,True)
-        self.assertTrue(len(xi)>0)
-        ln_p=np.array([-10000000000000000000000.])
-        ln_p0=np.array([100000000000000000000000000000000000000000000.])
-        xi,ln_pi,i=acceptance_check([x0],x1,alpha,ln_p,ln_p0,True,True)
-        self.assertEqual(len(xi),0)
-    def test_c_me_acceptance_check(self):
-        x=[{'gamma':0.1,'delta':0.05,'h':0.4,'kappa':0.2,'sigma':-0.01},{'gamma':0.05,'delta':0.01,'h':0.45,'kappa':0.4,'sigma':-0.01}]
-        ln_p=np.array([0.,10000])
-        cdef Py_ssize_t umax=ln_p.shape[0]
-        cdef Py_ssize_t nevents=2
-        cdef Py_ssize_t u
-        cdef Py_ssize_t v
-        cdef DTYPE_t[:,::1] gamma=np.empty((umax,nevents))
-        cdef DTYPE_t[:,::1] delta=np.empty((umax,nevents))
-        cdef DTYPE_t[:,::1] h=np.empty((umax,nevents))
-        cdef DTYPE_t[:,::1] sigma=np.empty((umax,nevents))
-        cdef DTYPE_t[:,::1] kappa=np.empty((umax,nevents))   
-        cdef DTYPE_t[:,::1] qg=np.empty((umax,nevents))
-        cdef DTYPE_t[:,::1] qd=np.empty((umax,nevents))          
-        cdef transition_ratio_ptr transition_ratio_fn=&gaussian_transition_ratio
-        cdef prior_ratio_ptr prior_ratio_fn=&uniform_prior_ratio  
-        cdef jump_params_ptr jump_params_fn=&gaussian_jump_prob
-        cdef DTYPE_t [::1]g0=np.empty((nevents))#0.1
-        cdef DTYPE_t [::1]g_s=np.empty((nevents))#0.1
-        cdef DTYPE_t [::1]d0=np.empty((nevents))#0.05
-        cdef DTYPE_t [::1]d_s=np.empty((nevents))#0.1
-        cdef DTYPE_t [::1]h0=np.empty((nevents))#0.5
-        cdef DTYPE_t [::1]h_s=np.empty((nevents))#0.1
-        cdef DTYPE_t [::1]s0=np.empty((nevents))#0
-        cdef DTYPE_t [::1]s_s=np.empty((nevents))#0.1
-        cdef DTYPE_t [::1]k0=np.empty((nevents))#0.3
-        cdef DTYPE_t [::1]qg0=np.empty((nevents))#0.
-        cdef DTYPE_t [::1]qd0=np.empty((nevents))#0.
-        cdef DTYPE_t [::1]sg=np.empty((nevents))#0.1
-        cdef DTYPE_t [::1]sd=np.empty((nevents))#0.1
-        cdef DTYPE_t [::1]pn=np.empty((nevents))#0.1
-        cdef DTYPE_t [::1]dc_prior=np.empty((nevents))#0.1
-        cdef int index
-        for v in range(nevents):
-            g0[v]=0.1
-            g_s[v]=0.1
-            d0[v]=0.05
-            d_s[v]=0.1
-            h0[v]=0.5
-            h_s[v]=0.1
-            s0[v]=0.
-            s_s[v]=0.1
-            k0[v]=0.3
-            qg0[v]=0.
-            qd0[v]=0.
-            sg[v]=0.1
-            sd[v]=0.1
-            pn[v]=1
-            dc_prior[v]=0.5
-            for u in range(umax):
-                gamma[u,v]=x[u]['gamma']
-                delta[u,v]=x[u]['delta']
-                kappa[u,v]=x[u]['kappa']
-                sigma[u,v]=x[u]['sigma']
-                h[u,v]=x[u]['h']
-                qg[u,v]=0.0;
-                qd[u,v]=0.0;
-        index=c_me_acceptance_check(transition_ratio_fn,prior_ratio_fn,jump_params_fn, gamma, delta, h, sigma,kappa, g0, g_s, d0, d_s, h0, h_s, s0, s_s,ln_p,-200.,k0,qg,qd,sg,sd,pn,dc_prior)
-        self.assertEqual(index,0)
-        index=c_me_acceptance_check(transition_ratio_fn,prior_ratio_fn,jump_params_fn, gamma, delta, h, sigma,kappa, g0, g_s, d0, d_s, h0, h_s, s0, s_s,ln_p,100,k0,qg,qd,sg,sd,pn,dc_prior)
-        self.assertEqual(index,1)
-
-    def test_me_acceptance_check(self):
-        x0={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': 0.0, 'delta': 0.0}
-        x1={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': .3, 'delta': 0.5}
-        alpha={'gamma_dc': 0.10471975511965977, 'sigma_dc': 0.009085556327826677, 'kappa': 0.018171112655653354, 'delta_dc': 0.15707963267948966,
-         'h': 0.005784044801253858, 'h_dc': 0.005784044801253858, 'poisson': 0.005784044801253858, 'delta': 0.009085556327826677,
-          'alpha': 0.009085556327826677, 'kappa_dc': 0.018171112655653354, 'sigma': 0.009085556327826677, 'gamma': 0.00605703755188445,'proposal_normalisation':1.0}
-        ln_p=np.array([5.0,3.0])
-        ln_p0=-30
-        x=[x0,x1]
-        xi,ln_pi,i=me_acceptance_check([x,x,x],[x0,x0,x0],[alpha,alpha,alpha],ln_p,ln_p0,True,False)
-        self.assertEqual(i,0) 
-        self.assertEqual([x0,x0,x0],xi)
-        ln_p=np.array([-np.inf,3.0])
-        ln_p0=-np.inf
-        x=[x0,x1]
-        xi,ln_pi,i=me_acceptance_check([x],[x0],[alpha],ln_p,ln_p0,True,False)
-        self.assertEqual(i,1)
-        self.assertEqual([x1],xi)
-        #Tests for gaussian jump
-        x0={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': 0.0, 'delta': 0.0}
-        x1={'h': 0.16037522711021507, 'kappa': 1.7045926666235598, 'sigma': 1.2202710645123613, 'gamma': .1, 'delta': 0.1}
-        alpha={'gamma_dc': 0.1, 'sigma_dc': 0.009085556327826677, 'kappa': 0.018171112655653354, 'delta_dc': 0.1,
-         'h': 0.005784044801253858, 'h_dc': 0.005784044801253858, 'poisson': 0.005784044801253858, 'delta': 0.009085556327826677,
-          'alpha': 0.009085556327826677, 'kappa_dc': 0.018171112655653354, 'sigma': 0.009085556327826677, 'gamma': 0.00605703755188445,'proposal_normalisation':0.99501231590631156}
-        ln_p=np.array([0.])
-        ln_p0=np.log(np.array([0.231]))
-        #dc to mt
-        xi,ln_pi,i=me_acceptance_check([[x1,x1]],[x0],[alpha],ln_p,ln_p0,True,True)
-        self.assertTrue(len(xi)>0)
-        ln_p=np.array([-10000000000000000000000.])
-        ln_p0=np.array([100000000000000000000000000000000000000000000])
-        #dc to mt
-        xi,ln_pi,i=me_acceptance_check([[x1]],[x0],[alpha],ln_p,ln_p0,True,True)
-        self.assertEqual(len(xi[0]),0)
-        ln_p=np.log(np.array([0.2321]))
-        ln_p0=np.array([0.])
-        #mt to dc
-        ln_p=np.array([0.2329])
-        xi,ln_pi,i=me_acceptance_check([[x0]],[x1],[alpha],ln_p,ln_p0,True,True)
-        self.assertTrue(len(xi[0])>0)
-        ln_p=np.array([-10000000000000000000000.])
-        ln_p0=np.array([100000000000000000000000000000000000000000000.])
-        xi,ln_pi,i=me_acceptance_check([[x0]],[x1],[alpha],ln_p,ln_p0,True,True)
-        self.assertEqual(len(xi[0]),0)
-
+# Test helper functions (wrappers for cdef functions, used by test suite)
 
 def _acceptance_test_fn(dict x, dict x0, dict alpha, DTYPE_t ln_p,DTYPE_t ln_p0,bool uniform_prior=True,bool gaussian_jump=True,DTYPE_t p_dc=0.5):
     cdef DTYPE_t qg
@@ -854,14 +589,16 @@ def _gaussian_transition_ratio_test(dict x, dict x0,dict alpha):
     return gaussian_transition_ratio(x['gamma'], x['delta'], x['h'], x['sigma'], x0['gamma'], alpha['gamma'], x0['delta'], alpha['delta'], x0['h'], alpha['h'], x0['sigma'], alpha['sigma']) 
 
 def _test_suite():
-    _c_markov_chain_monte_carlo_test_suite = unittest.TestLoader().loadTestsFromTestCase(_cmarkov_chain_monte_carlo_TestCase)
-    return unittest.TestSuite([_c_markov_chain_monte_carlo_test_suite])
+    import unittest
+    from MTfit.tests.unit.algorithms.test_cmarkov_chain_monte_carlo import CMarkovChainMonteCarloTestCase
+    suite = unittest.TestLoader().loadTestsFromTestCase(CMarkovChainMonteCarloTestCase)
+    return unittest.TestSuite([suite])
 
 def run_tests():
-    """Runs monteCarloMarkovChain module tests.
-    """
-    suite=_test_suite()
+    """Runs cmarkov_chain_monte_carlo module tests."""
+    import unittest
+    suite = _test_suite()
     unittest.TextTestRunner(verbosity=4).run(suite)
 
-if  __name__=='__main__':
+if __name__ == '__main__':
     run_tests()

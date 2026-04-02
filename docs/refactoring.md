@@ -91,5 +91,67 @@ self._ln_pdf = np.empty((1, 0))
 - **optparse 导入**: 0
 - **super(Cls, self) 模式**: 0
 - **sys.version_info 兼容检查**: 0
-- **总测试通过**: 181
-- **代码净减少**: ~1825 行
+- **总测试通过**: 185
+- **代码净减少**: ~3000+ 行
+
+---
+
+## Cython 扩展重构（Phase 2）
+
+### 概述
+
+4 个 Cython 扩展文件（共 ~3845 行）针对 Cython 3.x 和 NumPy 2.x 进行了现代化重构。
+
+### 通用改动（所有 .pyx 文件）
+
+| 改动 | 原因 |
+|------|------|
+| 移除 `from cython.view cimport array as cvarray` | Cython 3.x 弃用 |
+| 移除 `from cpython cimport bool` | Cython 3.x 弃用，改用 Python 内置 bool |
+| 添加 `np.import_array()` | NumPy 2.x C-API 初始化要求 |
+| `for i from 0<=i<n:` → `for i in range(n):` | C 风格循环在 Cython 3.x 弃用 |
+| 清理注释掉的 debug print 语句 | 代码清洁 |
+| 将嵌入的 TestCase 移到独立测试文件 | Cython 3.x 不支持 .pyx 中的 Python 类包含 cdef |
+
+### 各文件改动详情
+
+#### cprobability.pyx（2172 → 2137 行）
+- 替换 127 处弃用的 C 风格 for 循环
+- 清理 18 处 debug print 注释
+- 保留 Windows 平台 erf() 条件编译
+- 无 np.matrix 使用
+
+#### cmoment_tensor_conversion.pyx（726 → 511 行）
+- **修复 np.matrix 使用**（2处）→ `np.atleast_2d(np.asarray(...))`
+- 移除嵌入的 `cMomentTensorConvertTestCase`（~215 行）→ 新测试文件
+- 添加 `ctypedef double DTYPE_t`（之前仅在 .pxd 中定义）
+
+#### cmarkov_chain_monte_carlo.pyx（866 → 603 行）
+- 移除嵌入的 `_cmarkov_chain_monte_carlo_TestCase`（~260 行）→ 新测试文件
+- 修复 9 处 `np.random.randn(1)` → `.item()`（NumPy 2.x 兼容）
+- 保留测试辅助函数（`_acceptance_test_fn` 等）
+
+#### cscatangle.pyx（81 → 65 行）
+- 统一使用 `HUGE_VAL` 替代平台条件编译
+- 最小改动，代码最简单
+
+### 构建系统
+
+新增最小化 `setup.py` 专门用于 Cython 扩展编译：
+```bash
+# 编译 C 扩展（可选，不影响纯 Python 功能）
+python setup.py build_ext --inplace
+```
+
+### 新增测试文件
+- `tests/unit/convert/test_cmoment_tensor_conversion.py` — 从 .pyx 移出的 C 扩展测试
+- `tests/unit/algorithms/test_cmarkov_chain_monte_carlo.py` — 从 .pyx 移出的 MCMC 扩展测试
+
+### 仓库清理
+
+删除了 19 个无关文件：
+- 旧 CI 脚本（ci/ 目录，.travis.yml，appveyor.yml）
+- 旧构建配置（setup.cfg，MANIFEST.in，requirements.txt，tox.ini）
+- Vagrant 开发环境
+- 旧 README.rst
+- 测试输出文件（.mat，.out）

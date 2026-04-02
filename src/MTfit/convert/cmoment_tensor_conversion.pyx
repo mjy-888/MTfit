@@ -1,7 +1,7 @@
 #!python
 # cython: infer_types=True
 
-# **Restricted:  For Non-Commercial Use Only** 
+# **Restricted:  For Non-Commercial Use Only**
 # This code is protected intellectual property and is available solely for teaching
 # and non-commercially funded academic research purposes.
 #
@@ -18,17 +18,17 @@ from libc.math cimport M_PI as pi
 from libc.math cimport M_SQRT2 as sqrt2
 from libc.stdlib cimport free
 
-import unittest
-
 cimport cython
 cimport numpy as np
 from scipy.linalg import eigh
 from scipy.optimize import fsolve
 from scipy import __version__ as __scipy_version__
 import numpy as np
-from cpython cimport bool
+from libcpp cimport bool
 
-from ..utilities.unittest_utils import TestCase
+np.import_array()
+
+ctypedef double DTYPE_t
 
 
 cdef DTYPE_t PI2=2*pi
@@ -214,7 +214,7 @@ cdef void cTape_MT6(DTYPE_t*M, DTYPE_t gamma,DTYPE_t delta,DTYPE_t kappa,DTYPE_t
 @cython.nonecheck(False)
 @cython.cdivision(True)
 cdef void cMultipleTape_MT6(DTYPE_t*M,DTYPE_t* gamma,DTYPE_t* delta,DTYPE_t* kappa,DTYPE_t* h,DTYPE_t* sigma,Py_ssize_t n) nogil:
-    for i from 0<=i<n:
+    for i in range(n):
         cTape_MT6(&M[i*6],gamma[i],delta[i],kappa[i],h[i],sigma[i])
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -477,11 +477,11 @@ def MT6_biaxes(DTYPE_t[:]MT6,list c):
 
 cpdef MT6c_D6(mt6,list c=isotropic_c(l=1,mu=1)):
     mtvoigt=mt6[np.array([0,1,2,5,4,3])]
-    mtvoigt=np.matrix(mtvoigt)
+    mtvoigt=np.atleast_2d(np.asarray(mtvoigt))
     if mtvoigt.shape[1]==6:
         mtvoigt=mtvoigt.T
     #Convert to voigt
-    dvoigt=np.linalg.solve(np.matrix(c21_cvoigt(c)),mtvoigt)
+    dvoigt=np.linalg.solve(np.asarray(c21_cvoigt(c)),mtvoigt)
     return np.asarray(dvoigt[np.array([0,1,2,5,4,3])])
 
 cpdef bool is_isotropic_c(list c):
@@ -507,221 +507,5 @@ cpdef DTYPE_t c_norm(list c):
     return sqrt(c[0]**2+c[6]**2+c[11]**2+2*(c[1]**2+c[2]**2+c[7]**2)+
                  4*(c[3]**2+c[4]**2+c[5]**2+c[8]**2+c[9]**2+c[10]**2+
                     c[12]**2+c[13]**2+c[14]**2+c[15]**2+c[18]**2+c[20]**2)+
-                 8*(c[16]**2+c[17]**2+c[19]**2));  
+                 8*(c[16]**2+c[17]**2+c[19]**2));
 
-# Test functions - Not Documented
-
-class cMomentTensorConvertTestCase(TestCase):
-    def test_cTape_MT6(self):
-        cdef DTYPE_t[::1] m=np.empty((6))
-        cTape_MT6(&m[0],0.12,0.43,0.76,0.63,0.75)
-        self.assertAlmostEqual(m[0],-0.3637,4)
-        self.assertAlmostEqual(m[1],0.4209,4)
-        self.assertAlmostEqual(m[2],0.6649,4)
-        self.assertAlmostEqual(m[3],0.3533,4)
-        self.assertAlmostEqual(m[4],-0.1952,4)
-        self.assertAlmostEqual(m[5],-0.2924,4)
-    def test_c_cE_tk(self):
-        results=np.array([0.,0.,0.,0.,0.,0.,0.])
-        E=np.array([1.,0.,-1.])
-        results=cE_tk(E,results)
-        self.assertAlmostEqual(results[5],0)
-        self.assertAlmostEqual(results[6],0)
-        E=np.array([1.,1.,1.])
-        results=cE_tk(E,results)
-        self.assertAlmostEqual(results[5],1.)
-        self.assertAlmostEqual(results[6],0.)
-        E=np.array([1.,-1.,-1.])
-        results=cE_tk(E,results)
-        self.assertAlmostEqual(results[5],-0.2)#y
-        self.assertAlmostEqual(results[6],-0.8)#x
-    def test_c_ctk_uv(self):
-        results=np.array([0.,0.,0.,0.,0.,0.,0.])
-        E=np.array([1.,0.,-1.])
-        results=cE_tk(E,results)
-        results=ctk_uv(results)
-        self.assertAlmostEqual(results[5],0)
-        self.assertAlmostEqual(results[6],0)
-        E=np.array([1.,1.,1.])
-        results=cE_tk(E,results)
-        results=ctk_uv(results)
-        self.assertAlmostEqual(results[5],0)
-        self.assertAlmostEqual(results[6],1)
-        E=np.array([1.,-1.,-1.])
-        results=cE_tk(E,results)
-        results=ctk_uv(results)
-        self.assertAlmostEqual(results[5],-4./3)
-        self.assertAlmostEqual(results[6],-1./3)
-    def test_c_cE_gd(self):
-        E=np.array([1.,0.,-1.])
-        cdef DTYPE_t g
-        cdef DTYPE_t d
-        cE_gd(E,&g,&d)
-        self.assertAlmostEqual(g,0)
-        self.assertAlmostEqual(d,0)
-        E=np.array([1.,1.,1.])
-        cE_gd(E,&g,&d)
-        self.assertAlmostEqual(g,0)
-        self.assertAlmostEqual(d,pi/2)
-        E=np.array([1.,-1.,-1.])
-        cE_gd(E,&g,&d)
-        self.assertAlmostEqual(g,-0.523598775598299)
-        self.assertAlmostEqual(d,-0.339836909454122)
-    def test_c_cN_sdr(self):
-        E=np.array([1.,0.,-1.])
-        cdef DTYPE_t s
-        cdef DTYPE_t d
-        cdef DTYPE_t r
-        cN_SDR(0.,0.5/np.sqrt(1.25),1.0/np.sqrt(1.25),0.5/np.sqrt(1.25),0,1.0/np.sqrt(1.25),&s,&d,&r)
-        self.assertAlmostEqual(s,pi)
-        self.assertAlmostEqual(d,0.463647609000806)
-        self.assertAlmostEqual(r,1.35080834939944)
-        cN_SDR(0.5/np.sqrt(1.25),0,1.0/np.sqrt(1.25),0.,0.5/np.sqrt(1.25),1.0/np.sqrt(1.25),&s,&d,&r)
-        self.assertAlmostEqual(s,pi/2)
-        self.assertAlmostEqual(d,0.463647609000806)
-        self.assertAlmostEqual(r,1.79078430419036)
-        N0 = 0.70710678
-        N1 = 0.11957316
-        N2 = -0.69692343
-        S0 = 0.70710678
-        S1 = -0.11957316
-        S2 = 0.69692343
-        cN_SDR(N0, N1, N2, S0, S1, S2, &s, &d, &r)
-        T = np.array([1., 0., 0.])
-        P = np.array([0.,
-                      0.16910198,
-                      -0.98559856])
-        # Test single TP - N conversion
-        s2, d2, r2 = cSingleTP_SDR(T, P)
-        self.assertEqual(s, s2)
-        self.assertEqual(d, d2)
-        self.assertEqual(r, r2)
-        try:
-            self.assertAlmostEqual(s, 279.5980303*pi/180)
-            self.assertAlmostEqual(d, 45.81931182*pi/180)
-            self.assertAlmostEqual(r, -76.36129238206001*pi/180)
-        except Exception:
-            self.assertAlmostEqual(s, 80.4019697*pi/180)
-            self.assertAlmostEqual(d, 45.81931182*pi/180)
-            self.assertAlmostEqual(r,-103.63870728*pi/180)
-
-    def test_c_cTP_SDR(self):
-        T=np.array([0.235702260395516,
-         0.235702260395516,
-         0.942809041582063])
-        P=np.array([0.707106781186547,
-        -0.707106781186547,
-                         0])
-        results=np.array([0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.])
-        results=cTP_SDR(T,P,results)
-        self.assertAlmostEqual(results[2],3.6052402625906)
-        self.assertAlmostEqual(results[3],0.666666666666667)
-        self.assertAlmostEqual(results[4],1.10714871779409)
-        try:
-            self.assertAlmostEqual(results[7],206.565051177078)
-            self.assertAlmostEqual(results[8],48.1896851042214)
-            self.assertAlmostEqual(results[9],63.434948822922)
-            self.assertAlmostEqual(results[10],63.434948822922)
-            self.assertAlmostEqual(results[11],48.1896851042214)
-            self.assertAlmostEqual(results[12],116.565051177078)
-        except Exception:
-            self.assertAlmostEqual(results[10],206.565051177078)
-            self.assertAlmostEqual(results[11],48.1896851042214)
-            self.assertAlmostEqual(results[12],63.434948822922)
-            self.assertAlmostEqual(results[7],63.434948822922)
-            self.assertAlmostEqual(results[8],48.1896851042214)
-            self.assertAlmostEqual(results[9],116.565051177078)
-
-    def test_c_cSingleTP_SDR(self):
-        T = np.array([0.235702260395516,
-                      0.235702260395516,
-                      0.942809041582063])
-        P = np.array([0.707106781186547,
-                      -0.707106781186547,
-                      0])
-        s, d, r = cSingleTP_SDR(T, P)
-        try:
-            self.assertAlmostEqual(s, 3.6052402625906)
-            self.assertAlmostEqual(d, 0.666666666666667)
-            self.assertAlmostEqual(r, 1.10714871779409)
-        except Exception:
-            self.assertAlmostEqual(s, 63.434948822922*pi/180)
-            self.assertAlmostEqual(d, 48.1896851042214*pi/180)
-            self.assertAlmostEqual(r, 116.565051177078*pi/180)
-        T = np.array([1., 0., 0.])
-        P = np.array([0.,
-                      0.16910198,
-                      -0.98559856])
-        s, d, r = cSingleTP_SDR(T, P)
-        try:
-            self.assertAlmostEqual(s, 279.5980303*pi/180)
-            self.assertAlmostEqual(d, 45.81931182*pi/180)
-            self.assertAlmostEqual(r, -76.36129238206001*pi/180)
-        except Exception:
-            self.assertAlmostEqual(s, 80.4019697*pi/180)
-            self.assertAlmostEqual(d, 45.81931182*pi/180)
-            self.assertAlmostEqual(r,-103.63870728*pi/180)
-
-    def test_c_MT6_TNPE(self):
-        MT=np.array([[1.,0.,-1.,0.,0.,0.],[0,2.0,-1.0,0.,1.0,0.]]).T
-        T,N,P,E=MT6_TNPE(MT)
-        self.assertAlmostEqual(E[0,0],1)
-        self.assertAlmostEqual(E[1,0],0)
-        self.assertAlmostEqual(E[2,0],-1)
-        self.assertAlmostEqual(np.abs(T[0,0]),1)
-        self.assertAlmostEqual(np.abs(T[1,0]),0)
-        self.assertAlmostEqual(np.abs(T[2,0]),0)
-        self.assertAlmostEqual(np.abs(N[0,0]),0)
-        self.assertAlmostEqual(np.abs(N[1,0]),1)
-        self.assertAlmostEqual(np.abs(N[2,0]),0)
-        self.assertAlmostEqual(np.abs(P[0,0]),0)
-        self.assertAlmostEqual(np.abs(P[1,0]),0)
-        self.assertAlmostEqual(np.abs(P[2,0]),1)
-        #Second Event
-        self.assertAlmostEqual(E[0,1],2)
-        self.assertAlmostEqual(E[1,1],0.366025403784439 )
-        self.assertAlmostEqual(E[2,1],-1.36602540378444)
-        self.assertAlmostEqual(np.abs(T[0,1]),0)
-        self.assertAlmostEqual(np.abs(T[1,1]),1)
-        self.assertAlmostEqual(np.abs(T[2,1]),0)
-        self.assertAlmostEqual(np.abs(N[0,1]),0.888073833977115)
-        self.assertAlmostEqual(np.abs(N[1,1]),0)
-        self.assertAlmostEqual(np.abs(N[2,1]),0.459700843380983)
-        self.assertAlmostEqual(np.abs(P[0,1]),0.459700843380983)
-        self.assertAlmostEqual(np.abs(P[1,1]),0)
-        self.assertAlmostEqual(np.abs(P[2,1]),0.888073833977115)
-    def test_c_E_GD(self):
-        E=np.array([[1.,0.,-1.],[1.,1.,1.],[1.,-1.,-1.],[-1.,-1.,-1.]]).T
-        g,d=E_GD(E)
-        self.assertAlmostEqual(g[0],np.array([0.]))
-        self.assertAlmostEqual(d[0],np.array([0.]))
-        self.assertAlmostEqual(g[1],np.array([0.]))
-        self.assertAlmostEqual(d[1],np.array([pi/2]))
-        self.assertAlmostEqual(g[2],np.array([-0.523598775598299]))
-        self.assertAlmostEqual(d[2],np.array([-0.339836909454122]))
-        self.assertAlmostEqual(g[3],np.array([0.]))
-        self.assertAlmostEqual(d[3],np.array([-pi/2]))
-    def test_c_TP_SDR(self):
-        T=np.array([[0.235702260395516,0.],[0.235702260395516,1.0],[0.942809041582063,0.]])
-        P=np.array([[0.707106781186547,1.],[-0.707106781186547,0],[0.,0.]])
-        s,d,r=TP_SDR(T,P)
-        self.assertAlmostEqual(s[0],np.array([1.1071487177940911]))
-        self.assertAlmostEqual(d[0],np.array([0.84106867056793]))
-        self.assertAlmostEqual(r[0],np.array([2.0344439357957032]))
-        self.assertAlmostEqual(s[1],np.array([5.497787143782138]))
-        self.assertAlmostEqual(d[1],np.array([pi/2]))
-        self.assertAlmostEqual(r[1],np.array([-pi]))
-    def test_c_SDR_SDR(self):
-        s2,d2,r2=SDR_SDR(np.array([206.565051177078*pi/180]),np.array([48.1896851042214*pi/180]),np.array([63.434948822922*pi/180]))
-        self.assertAlmostEqual(s2,63.434948822922*pi/180)
-        self.assertAlmostEqual(d2,48.1896851042214*pi/180)
-        self.assertAlmostEqual(r2,116.565051177078*pi/180)
-        s2,d2,r2=SDR_SDR(np.array([63.434948822922*pi/180]),np.array([48.1896851042214*pi/180]),np.array([116.565051177078*pi/180]))
-        self.assertAlmostEqual(s2,206.565051177078*pi/180)
-        self.assertAlmostEqual(d2,48.1896851042214*pi/180)
-        self.assertAlmostEqual(r2,63.434948822922*pi/180)
-
-def test_suite(verbosity=2):
-    suite = [unittest.TestLoader().loadTestsFromTestCase(cMomentTensorConvertTestCase), ]
-    suite = unittest.TestSuite(suite)
-    return suite
