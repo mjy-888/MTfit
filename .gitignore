@@ -52,11 +52,8 @@ docs/html/*
 *.mat
 
 # Vagrant
-.vagrant/*
-
-# Cython generated C files
-*.c
-!src/MTfit/**/*.c
+.vagrant/
+vagrantfile
 
 # Backup files
 *.bak
