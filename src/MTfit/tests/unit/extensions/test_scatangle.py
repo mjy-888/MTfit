@@ -1,25 +1,19 @@
 import unittest
-import sys
 import glob
 import os
 import tempfile
-import shutil
+from unittest import mock
 
 from MTfit.extensions.scatangle import parse_scatangle
 from MTfit.extensions import scatangle
 from MTfit.utilities import C_EXTENSION_FALLBACK_LOG_MSG
 from MTfit.utilities.unittest_utils import get_extension_skip_if_args
 
-if sys.version_info >= (3, 3):
-    from unittest import mock
-else:
-    import mock
-
 
 C_EXTENSIONS = get_extension_skip_if_args('MTfit.extension.cscatangle')
 
 
-class PythonOnly(object):
+class PythonOnly:
 
     def __enter__(self, *args, **kwargs):
         self.cscatangle = scatangle.cscatangle
@@ -33,12 +27,8 @@ class ScatangleTestCase(unittest.TestCase):
 
     def setUp(self):
         self.cwd = os.getcwd()
-        if sys.version_info >= (3, 0):
-            self.tempdir = tempfile.TemporaryDirectory()
-            os.chdir(self.tempdir.name)
-        else:
-            self.tempdir = tempfile.mkdtemp()
-            os.chdir(self.tempdir)
+        self.tempdir = tempfile.TemporaryDirectory()
+        os.chdir(self.tempdir.name)
         self.existing_scatangle_files = glob.glob('*.scatangle')
 
     def tearDown(self):
@@ -47,20 +37,14 @@ class ScatangleTestCase(unittest.TestCase):
                 try:
                     os.remove(fname)
                 except Exception:
-                    print('Cannot remove {}'.format(fname))
+                    print(f'Cannot remove {fname}')
         import gc
         try:
             os.remove('test.scatangle')
         except Exception:
             pass
         os.chdir(self.cwd)
-        if sys.version_info >= (3, 0):
-            self.tempdir.cleanup()
-        else:
-            try:
-                shutil.rmtree(self.tempdir)
-            except:
-                pass
+        self.tempdir.cleanup()
         gc.collect()
 
     def station_angles(self):

@@ -4,13 +4,9 @@ import glob
 import time
 import sys
 import tempfile
-import shutil
 import gc
 import logging
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import pickle
 
 import numpy as np
 
@@ -33,16 +29,13 @@ from MTfit.utilities.unittest_utils import get_extension_skip_if_args
 
 logger = logging.getLogger('MTfit.tests')
 
-if sys.version_info >= (3, 3):
-    from unittest import mock
-else:
-    import mock
+from unittest import mock
 
 
 C_EXTENSIONS = get_extension_skip_if_args('MTfit.algorithms.cmarkov_chain_monte_carlo')
 
 
-class PythonAlgorithms(object):
+class PythonAlgorithms:
 
     def __enter__(self, *args, **kwargs):
         self.cmarkov_chain_monte_carlo = mcmc.cmarkov_chain_monte_carlo
@@ -56,23 +49,19 @@ class McMCForwardTaskTestCase(TestCase):
 
     def setUp(self):
         self.cwd = os.getcwd()
-        if sys.version_info >= (3, 0):
-            self.tempdir = tempfile.TemporaryDirectory()
-            os.chdir(self.tempdir.name)
-        else:
-            self.tempdir = tempfile.mkdtemp()
-            os.chdir(self.tempdir)
+        self.tempdir = tempfile.TemporaryDirectory()
+        os.chdir(self.tempdir.name)
         self.existing_log_files = glob.glob('*.log')
         data = {'PPolarity': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])},
                 'PPolarity2': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data)
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.003], [0.001, 0.002]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.003], [0.001, 0.002]])},
                 'P/SVAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                       'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.03], [0.001, 0.02]])}}
+                                       'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.03], [0.001, 0.02]])}}
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(data)
         self.algorithm_kwargs = {'learning_length': 10, 'chain_length': 4, 'acceptance_rate_window': 20}
         self.mcmc_forward_task = McMCForwardTask(self.algorithm_kwargs, a_polarity, error_polarity, a1_amplitude_ratio, a2_amplitude_ratio,
@@ -88,13 +77,7 @@ class McMCForwardTaskTestCase(TestCase):
                     print('Cannot remove {}'.format(fname))
         del self.mcmc_forward_task
         os.chdir(self.cwd)
-        if sys.version_info >= (3, 0):
-            self.tempdir.cleanup()
-        else:
-            try:
-                shutil.rmtree(self.tempdir)
-            except:
-                pass
+        self.tempdir.cleanup()
 
     @unittest.skipIf(*C_EXTENSIONS)
     @mock.patch('MTfit.algorithms.markov_chain_monte_carlo.logger')
@@ -106,14 +89,14 @@ class McMCForwardTaskTestCase(TestCase):
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
             [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.9], [0.9]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.9], [0.9]])},
                 'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.9], [0.9]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.9], [0.9]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.9, 0.9], [0.9, 0.9]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.9, 0.9], [0.9, 0.9]])},
                 'P/SVAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                       'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.9, 0.9], [0.9, 0.9]])}}
+                                       'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.9, 0.9], [0.9, 0.9]])}}
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data, location_samples)
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data, location_samples)
@@ -133,14 +116,14 @@ class McMCForwardTaskTestCase(TestCase):
             location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
                 [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
             data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                  'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.9], [0.9]])},
+                                  'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.9], [0.9]])},
                     'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                   'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.9], [0.9]])}}
+                                   'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.9], [0.9]])}}
             a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
             data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                              'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.9, 0.9], [0.9, 0.9]])},
+                                              'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.9, 0.9], [0.9, 0.9]])},
                     'P/SVAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                           'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.9, 0.9], [0.9, 0.9]])}}
+                                           'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.9, 0.9], [0.9, 0.9]])}}
             a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data, location_samples)
             a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
                 data, location_samples)
@@ -155,21 +138,17 @@ class MultipleEventsMcMCForwardTaskTestCase(TestCase):
 
     def setUp(self):
         self.cwd = os.getcwd()
-        if sys.version_info >= (3, 0):
-            self.tempdir = tempfile.TemporaryDirectory()
-            os.chdir(self.tempdir.name)
-        else:
-            self.tempdir = tempfile.mkdtemp()
-            os.chdir(self.tempdir)
+        self.tempdir = tempfile.TemporaryDirectory()
+        os.chdir(self.tempdir.name)
         self.existing_log_files = glob.glob('*.log')
         data = {'PPolarity': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.9], [0.9]])}}
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.9], [0.9]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data)
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.9, 0.9], [0.9, 0.9]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.9, 0.9], [0.9, 0.9]])},
                 'P/SVAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                       'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.9, 0.9], [0.9, 0.9]])}}
+                                       'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.9, 0.9], [0.9, 0.9]])}}
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data)
         self.algorithm_kwargs = {'learning_length': 10, 'chain_length': 4, 'acceptance_rate_window': 20, 'number_events': 2, 'min_number_initialisation_samples': 10}
@@ -201,13 +180,7 @@ class MultipleEventsMcMCForwardTaskTestCase(TestCase):
                     print('Cannot remove {}'.format(fname))
         del self.multiple_events_mcmc_forward_task
         os.chdir(self.cwd)
-        if sys.version_info >= (3, 0):
-            self.tempdir.cleanup()
-        else:
-            try:
-                shutil.rmtree(self.tempdir)
-            except:
-                pass
+        self.tempdir.cleanup()
 
     @unittest.skipIf(*C_EXTENSIONS)
     @mock.patch('MTfit.algorithms.markov_chain_monte_carlo.logger')
@@ -231,18 +204,18 @@ class MultipleEventsMcMCForwardTaskTestCase(TestCase):
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
             [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.9], [0.9]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.9], [0.9]])},
                 'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.9], [0.9]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.9], [0.9]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.8, 0.9], [0.8, 0.9]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.8, 0.9], [0.8, 0.9]])},
                 'P/SVAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                       'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.8, 0.9], [0.8, 0.9]])},
+                                       'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.8, 0.9], [0.8, 0.9]])},
                 'P/SHRMSAmplitudeRatio2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                           'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.8, 0.9], [0.8, 0.9]])},
+                                           'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.8, 0.9], [0.8, 0.9]])},
                 'P/SVAmplitudeRatio2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                        'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.8, 0.9], [0.8, 0.9]])}}
+                                        'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.8, 0.9], [0.8, 0.9]])}}
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data, location_samples)
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data, location_samples)
@@ -273,18 +246,18 @@ class MultipleEventsMcMCForwardTaskTestCase(TestCase):
             location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
                 [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
             data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                  'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.9], [0.9]])},
+                                  'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.9], [0.9]])},
                     'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                   'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.9], [0.9]])}}
+                                   'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.9], [0.9]])}}
             a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
             data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                              'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.8, 0.9], [0.8, 0.9]])},
+                                              'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.8, 0.9], [0.8, 0.9]])},
                     'P/SVAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                           'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.8, 0.9], [0.8, 0.9]])},
+                                           'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.8, 0.9], [0.8, 0.9]])},
                     'P/SHRMSAmplitudeRatio2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                               'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.8, 0.9], [0.8, 0.9]])},
+                                               'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.8, 0.9], [0.8, 0.9]])},
                     'P/SVAmplitudeRatio2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                            'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.8, 0.9], [0.8, 0.9]])}}
+                                            'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.8, 0.9], [0.8, 0.9]])}}
             a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data, location_samples)
             a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
                 data, location_samples)
@@ -314,29 +287,25 @@ class MultipleEventsForwardTaskTestCase(TestCase):
 
     def setUp(self):
         self.cwd = os.getcwd()
-        if sys.version_info >= (3, 0):
-            self.tempdir = tempfile.TemporaryDirectory()
-            os.chdir(self.tempdir.name)
-        else:
-            self.tempdir = tempfile.mkdtemp()
-            os.chdir(self.tempdir)
+        self.tempdir = tempfile.TemporaryDirectory()
+        os.chdir(self.tempdir.name)
         data = {'PPolarity': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])},
                 'PPolarity2': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data)
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.003], [0.001, 0.002]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.003], [0.001, 0.002]])},
                 'P/SVAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                       'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.03], [0.001, 0.02]])}}
+                                       'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.03], [0.001, 0.02]])}}
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data)
         data = {'PRMSQAmplitude': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                   'Measured': np.matrix([[1.3664], [1.0038]]), 'Error': np.matrix([[0.001], [0.002]])}}
+                                   'Measured': np.array([[1.3664], [1.0038]]), 'Error': np.array([[0.001], [0.002]])}}
         a_relative_amplitude, relative_amplitude, percentage_error_relative_amplitude, relative_amplitude_stations = relative_amplitude_ratio_matrix(
             data)
-        MTs = np.matrix([[-3.11183179e-01,   6.28082467e-01,   3.75893170e-01,
+        MTs = np.array([[-3.11183179e-01,   6.28082467e-01,   3.75893170e-01,
                           2.32496521e-01,  -1.91598717e-01,  -1.01887355e-02,
                           -2.71853364e-01,  -3.33336969e-01,   3.79659261e-02,
                           -1.74421393e-01,  -6.60894648e-01,  -3.27058984e-01,
@@ -554,13 +523,7 @@ class MultipleEventsForwardTaskTestCase(TestCase):
         del self.multiple_events_forward_task
         del self.MTs
         os.chdir(self.cwd)
-        if sys.version_info >= (3, 0):
-            self.tempdir.cleanup()
-        else:
-            try:
-                shutil.rmtree(self.tempdir)
-            except:
-                pass
+        self.tempdir.cleanup()
 
     def test___call__(self):
         result = self.multiple_events_forward_task()
@@ -570,14 +533,14 @@ class MultipleEventsForwardTaskTestCase(TestCase):
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
             [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])},
                 'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                 'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                        'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                        'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data, location_samples)
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data, location_samples)
@@ -605,7 +568,7 @@ class MultipleEventsForwardTaskTestCase(TestCase):
         self.assertTrue(result['ln_pdf'].shape, (self.MTs.shape[0], 1))
         self.assertTrue(result['ln_pdf'].shape[1], 3)
         data = {'PRMSQAmplitude': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                   'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])}}
+                                   'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])}}
         a_relative_amplitude, relative_amplitude, percentage_error_relative_amplitude, relative_amplitude_stations = relative_amplitude_ratio_matrix(data, location_samples)
         self.multiple_events_forward_task = MultipleEventsForwardTask([self.MTs, self.MTs], a_polarity, [error_polarity, error_polarity],
                                                                       a1_amplitude_ratio, a2_amplitude_ratio, [amplitude_ratio, amplitude_ratio],
@@ -661,25 +624,21 @@ class ForwardTaskTestCase(TestCase):
 
     def setUp(self):
         self.cwd = os.getcwd()
-        if sys.version_info >= (3, 0):
-            self.tempdir = tempfile.TemporaryDirectory()
-            os.chdir(self.tempdir.name)
-        else:
-            self.tempdir = tempfile.mkdtemp()
-            os.chdir(self.tempdir)
+        self.tempdir = tempfile.TemporaryDirectory()
+        os.chdir(self.tempdir.name)
         data = {'PPolarity': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])},
                 'PPolarity2': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data)
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                 'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                        'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                        'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data)
-        MTs = np.matrix([[-3.11183179e-01,   6.28082467e-01,   3.75893170e-01,
+        MTs = np.array([[-3.11183179e-01,   6.28082467e-01,   3.75893170e-01,
                           2.32496521e-01,  -1.91598717e-01,  -1.01887355e-02,
                           -2.71853364e-01,  -3.33336969e-01,   3.79659261e-02,
                           -1.74421393e-01,  -6.60894648e-01,  -3.27058984e-01,
@@ -902,13 +861,7 @@ class ForwardTaskTestCase(TestCase):
         global _COMBINED_TESTS
         _COMBINED_TESTS = True
         os.chdir(self.cwd)
-        if sys.version_info >= (3, 0):
-            self.tempdir.cleanup()
-        else:
-            try:
-                shutil.rmtree(self.tempdir)
-            except:
-                pass
+        self.tempdir.cleanup()
 
     def test___call__(self):
         global _COMBINED_TESTS
@@ -920,14 +873,14 @@ class ForwardTaskTestCase(TestCase):
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
             [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])},
                 'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                 'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                        'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                        'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data, location_samples)
@@ -945,14 +898,14 @@ class ForwardTaskTestCase(TestCase):
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
             [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])},
                 'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                 'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                        'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                        'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data, location_samples)
@@ -972,14 +925,14 @@ class ForwardTaskTestCase(TestCase):
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array([31.0, 61.0, 12.1])},
                             {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])},
                 'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                 'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                        'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                        'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data, location_samples)
@@ -1012,14 +965,14 @@ class ForwardTaskTestCase(TestCase):
             location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
                 [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
             data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                  'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])},
+                                  'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])},
                     'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                   'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])}}
+                                   'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])}}
             a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
             data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                              'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                              'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                     'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                            'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                            'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
             a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
             a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
                 data, location_samples)
@@ -1036,14 +989,14 @@ class ForwardTaskTestCase(TestCase):
             location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
                 [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
             data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                  'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])},
+                                  'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])},
                     'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                   'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])}}
+                                   'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])}}
             a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
             data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                              'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                              'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                     'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                            'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                            'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
             a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
             a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
                 data, location_samples)
@@ -1062,15 +1015,15 @@ class ForwardTaskTestCase(TestCase):
             location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
                 [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
             data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                  'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])},
+                                  'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])},
                     'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                   'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.1]])}}
+                                   'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.1]])}}
             a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(
                 data, location_samples)
             data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                              'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                              'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                     'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                            'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                            'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
             a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
             a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(data, location_samples)
             self.forward_task = ForwardTask(self.MTs, a_polarity, error_polarity, a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio,
@@ -1085,14 +1038,14 @@ class ForwardTaskTestCase(TestCase):
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
             [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])},
                 'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                 'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                        'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                        'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data, location_samples)
@@ -1106,14 +1059,14 @@ class ForwardTaskTestCase(TestCase):
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
             [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         data = {'PPolarity': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])},
                 'PPolarity2': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])}}
         a_polarity, error_polarity, incorrect_polarity_prob = polarity_matrix(data, location_samples)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1.3664, 1], [1.0038, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                          'Measured': np.array([[1.3664, 1], [1.0038, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                 'P/SVQAmplitudeRatio': {'Stations': {'Name': ['S01', 'S02'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                                        'Measured': np.matrix([[1.3386, 1], [0.9805, 1]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])}}
+                                        'Measured': np.array([[1.3386, 1], [0.9805, 1]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])}}
         a_polarity_prob, polarity_prob, incorrect_polarity_prob = polarity_probability_matrix(data)
         a1_amplitude_ratio, a2_amplitude_ratio, amplitude_ratio, percentage_error1_amplitude_ratio, percentage_error2_amplitude_ratio = amplitude_ratio_matrix(
             data, location_samples)
@@ -1131,12 +1084,8 @@ class InversionTestCase(TestCase):
 
     def setUp(self):
         self.cwd = os.getcwd()
-        if sys.version_info >= (3, 0):
-            self.tempdir = tempfile.TemporaryDirectory()
-            os.chdir(self.tempdir.name)
-        else:
-            self.tempdir = tempfile.mkdtemp()
-            os.chdir(self.tempdir)
+        self.tempdir = tempfile.TemporaryDirectory()
+        os.chdir(self.tempdir.name)
         global _DEBUG
         _DEBUG = True
         self.parallel = not _DEBUG
@@ -1181,13 +1130,7 @@ class InversionTestCase(TestCase):
             pass
         gc.collect()
         os.chdir(self.cwd)
-        if sys.version_info >= (3, 0):
-            self.tempdir.cleanup()
-        else:
-            try:
-                shutil.rmtree(self.tempdir)
-            except:
-                pass
+        self.tempdir.cleanup()
 
     def _test_csv_file(self):
         csv = """UID=123,,,,
@@ -1206,8 +1149,8 @@ S003,110,10,1,0.05"""
         open('csvtest.csv', 'w').write(csv)
 
     def _test_inv_file(self):
-        data = {'UID': '1', 'PPolarity': {'Stations': {'Name': ['S001', 'S002'], 'Azimuth': np.matrix([[120.0], [140.0]]), 'TakeOffAngle': np.matrix(
-            [[65.0], [22.0]])}, 'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.01], [0.02]])}}
+        data = {'UID': '1', 'PPolarity': {'Stations': {'Name': ['S001', 'S002'], 'Azimuth': np.array([[120.0], [140.0]]), 'TakeOffAngle': np.array(
+            [[65.0], [22.0]])}, 'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.01], [0.02]])}}
         pickle.dump(data, open('invtest.inv', 'wb'))
 
     def test__load(self):
@@ -1308,8 +1251,8 @@ S003,110,10,1,0.05"""
 
     def test__recover_test(self):
         self.assertFalse(self.inversion._recover_test('RecoverTestMT'))
-        self.inversion = Inversion({'UID': 'RecoverTest', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                        'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'UID': 'RecoverTest', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                        'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=1, max_time=10, convert=False)
         self.inversion.number_samples = 100
         self.assertFalse(len(self.inversion.algorithm.pdf_sample))
@@ -1318,8 +1261,8 @@ S003,110,10,1,0.05"""
         self.assertTrue(self.inversion.algorithm.pdf_sample.n, str(
             self.inversion.algorithm.pdf_sample.n))
         self.assertTrue(os.path.exists('RecoverTestMT.mat'))
-        self.inversion = Inversion({'UID': 'RecoverTest', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                        'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'UID': 'RecoverTest', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                        'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='Time', recover=True, parallel=self.parallel, phy_mem=1, max_time=10, convert=False)
         self.assertTrue(self.inversion._recover_test('RecoverTestMT'))
         try:
@@ -1337,16 +1280,16 @@ S003,110,10,1,0.05"""
         except Exception:
             print('Cannot run _file_sample test as required hdf5storage and h5py modules')
             return
-        self.inversion = Inversion({'UID': 'RecoverTest', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                        'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'UID': 'RecoverTest', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                        'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=1, max_time=10, file_sample=True, convert=False)
         self.assertFalse(self.inversion._file_sample_test('FileSampleTest'))
         self.inversion.algorithm.pdf_sample.fname = 'FileSampleTest.mat'
         self.assertEqual(self.inversion.algorithm.pdf_sample.fname, 'FileSampleTest.mat')
-        self.inversion.algorithm.pdf_sample.append(np.matrix([[1], [2], [1], [2], [1], [1]]), np.matrix([1]), 10)
+        self.inversion.algorithm.pdf_sample.append(np.array([[1], [2], [1], [2], [1], [1]]), np.array([[1]]), 10)
         self.assertTrue(os.path.exists(self.inversion.algorithm.pdf_sample.fname))
-        self.inversion.algorithm.pdf_sample.append(np.matrix([[1], [2], [1], [2], [1], [1]]), np.matrix([1]), 20)
-        self.inversion.algorithm.pdf_sample.append(np.matrix([[1], [2], [1], [2], [1], [1]]), np.matrix([-np.inf]), 20)
+        self.inversion.algorithm.pdf_sample.append(np.array([[1], [2], [1], [2], [1], [1]]), np.array([[1]]), 20)
+        self.inversion.algorithm.pdf_sample.append(np.array([[1], [2], [1], [2], [1], [1]]), np.array([[-np.inf]]), 20)
         self.inversion._file_sample_test('FileSampleTest')
         try:
             os.remove('FileSampleTest.mat')
@@ -1362,22 +1305,22 @@ S003,110,10,1,0.05"""
             self.tearDown()
         except Exception:
             pass
-        self.inversion = Inversion({'UID': 'RecoverTest', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                        'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'UID': 'RecoverTest', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                        'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=1, max_time=10, file_sample=True, convert=False)
         # File Sample is being used appropriately
         self.assertTrue('fname' in self.inversion.algorithm.pdf_sample.__dict__)
 
     def test__station_angles(self):
-        self.assertAlmostEquals(self.inversion._station_angles({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                              'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}}, 1)[0], np.array([[[9.37349864e-34,   2.50000000e-01,   7.50000000e-01,
+        self.assertAlmostEquals(self.inversion._station_angles({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                              'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}}, 1)[0], np.array([[[9.37349864e-34,   2.50000000e-01,   7.50000000e-01,
                                                                                                                                                                                            2.16489014e-17,   3.74969972e-17,   6.12372436e-01]],
                                                                                                                                                                                          [[-2.53084463e-32,  -7.50000000e-01,  -2.50000000e-01,
                                                                                                                                                                                            -1.94840113e-16,   1.12490991e-16,   6.12372436e-01]],
                                                                                                                                                                                          [[-3.28989928e-01,  -4.93405863e-33,  -6.71010072e-01,
                                                                                                                                                                                            5.69781642e-17,   6.64463024e-01,  -8.13732516e-17]]]))
-        self.assertAlmostEquals(self.inversion._station_angles({'P/SHQRMSAmplitudeRatio': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                                           'Measured': np.matrix([[1, 2], [-1, 3], [-1, 5]]), 'Error': np.matrix([[0.001, 0.02], [0.5, 0.02], [0.02, 0.02]])}}, 1)[2], np.array([[[9.37349864e-34,   2.50000000e-01,   7.50000000e-01,
+        self.assertAlmostEquals(self.inversion._station_angles({'P/SHQRMSAmplitudeRatio': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                                           'Measured': np.array([[1, 2], [-1, 3], [-1, 5]]), 'Error': np.array([[0.001, 0.02], [0.5, 0.02], [0.02, 0.02]])}}, 1)[2], np.array([[[9.37349864e-34,   2.50000000e-01,   7.50000000e-01,
                                                                                                                                                                                                                                    2.16489014e-17,   3.74969972e-17,   6.12372436e-01]],
                                                                                                                                                                                                                                  [[2.53084463e-32,  7.50000000e-01,  2.50000000e-01,
                                                                                                                                                                                                                                    1.94840113e-16,   -1.12490991e-16,   -6.12372436e-01]],
@@ -1387,8 +1330,8 @@ S003,110,10,1,0.05"""
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
         self.inversion.location_pdf_files = ['test.scatangle', '']
-        data = {'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                              'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}}
+        data = {'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                              'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}}
         angles = self.inversion._station_angles(data, 0)
         self.assertEqual(angles[0].shape, (3, 2, 6))
         angles = self.inversion._station_angles(data, 1)
@@ -1407,8 +1350,8 @@ S003,110,10,1,0.05"""
 
     def test_forward(self):
         self.tearDown()
-        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=0.1, n=2, max_time=10, convert=False)
         self.inversion.number_samples = 100
         self.assertFalse(len(self.inversion.algorithm.pdf_sample))
@@ -1419,8 +1362,8 @@ S003,110,10,1,0.05"""
         self.tearDown()
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
-        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=0.1, n=2, max_time=10, convert=False)
         self.inversion.location_pdf_files = ['test.scatangle']
         self.inversion.algorithm.max_time = 10
@@ -1433,8 +1376,8 @@ S003,110,10,1,0.05"""
 
     def test__random_sampling_forward(self):
         self.tearDown()
-        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=0.1, n=2, max_time=10, convert=False)
         self.inversion.number_samples = 100
         self.assertFalse(len(self.inversion.algorithm.pdf_sample))
@@ -1446,8 +1389,8 @@ S003,110,10,1,0.05"""
         self.tearDown()
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
-        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=0.1, n=2, max_time=10, convert=False)
         self.inversion.location_pdf_files = ['test.scatangle']
         self.inversion.algorithm.max_time = 10
@@ -1459,8 +1402,8 @@ S003,110,10,1,0.05"""
         self.assertTrue(len(self.inversion.algorithm.pdf_sample))
 
     def test__random_sampling_multiple_forward(self):
-        data = {'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                              'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}}
+        data = {'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                              'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}}
         self.tearDown()
         self.inversion = Inversion([data, data], multiple_events=True, algorithm='Time', parallel=self.parallel, phy_mem=0.1, n=2, max_time=10, convert=False)
         self.inversion.number_samples = 100
@@ -1482,10 +1425,10 @@ S003,110,10,1,0.05"""
         except Exception:
             pass
         self.assertTrue(len(self.inversion.algorithm.pdf_sample))
-        data = {'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                              'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])},
-                'PRMSQAmplitude': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                   'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}}
+        data = {'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                              'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])},
+                'PRMSQAmplitude': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                   'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}}
         self.tearDown()
         self.inversion = Inversion([data, data], multiple_events=True, algorithm='Time', parallel=self.parallel, phy_mem=0.1, n=2, max_time=10, relative_amplitude=True, convert=False)
         self.inversion.number_samples = 100
@@ -1517,8 +1460,8 @@ S003,110,10,1,0.05"""
             os.remove('TestAMT.mat')
         except Exception:
             pass
-        self.inversion = Inversion({'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='McMC', parallel=False, learning_length=10, chain_length=100, acceptance_rate_window=5, phy_mem=1, convert=False)
         self.inversion.number_samples = 100
         self.assertFalse(len(self.inversion.algorithm.pdf_sample))
@@ -1533,8 +1476,8 @@ S003,110,10,1,0.05"""
         self.tearDown()
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
-        self.inversion = Inversion({'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}},
+        self.inversion = Inversion({'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}},
                                    algorithm='Time', parallel=False, learning_length=10, chain_length=100, acceptance_rate_window=5, phy_mem=1, max_time=10, convert=False)
         self.inversion.location_pdf_files = ['test.scatangle']
         self.inversion.algorithm.max_time = 10
@@ -1554,8 +1497,8 @@ S003,110,10,1,0.05"""
             os.remove('MTfitOutput_joint_inversionMT.mat')
         except Exception:
             pass
-        data = {'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                              'Measured': np.matrix([[1], [1], [-1]]), 'Error': np.matrix([[0.1], [0.5], [0.02]])}}
+        data = {'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                              'Measured': np.array([[1], [1], [-1]]), 'Error': np.array([[0.1], [0.5], [0.02]])}}
         self.inversion = Inversion([data, data], algorithm='McMC', parallel=False, learning_length=10, chain_length=100, acceptance_rate_window=5, phy_mem=1, multiple_events=True, convert=False)
         self.assertFalse(len(self.inversion.algorithm.pdf_sample))
         self.inversion._mcmc_multiple_forward()
@@ -1571,8 +1514,8 @@ S003,110,10,1,0.05"""
             os.remove('MTfitOutput_joint_inversionMT.mat')
         except Exception:
             pass
-        data = {'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                              'Measured': np.matrix([[1], [1], [-1]]), 'Error': np.matrix([[0.1], [0.5], [0.02]])}}
+        data = {'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                              'Measured': np.array([[1], [1], [-1]]), 'Error': np.array([[0.1], [0.5], [0.02]])}}
         data2 = data.copy()
         data2['UID'] = 'TestB'
         self.inversion = Inversion([data, data], algorithm='McMC', parallel=False, relative_amplitude=True, learning_length=10, chain_length=100, acceptance_rate_window=5, phy_mem=1, multiple_events=True, convert=False)
@@ -1597,10 +1540,10 @@ S003,110,10,1,0.05"""
             os.remove('MTfitOutput_joint_inversionMT.mat')
         except Exception:
             pass
-        data = {'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162"], 'Azimuth': np.matrix([[90.0], [270.0]]), 'TakeOffAngle': np.matrix([[30.0], [60.0]])},
-                                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.5]])},
-                'PRMSQAmplitude': {'Stations': {'Name': ['S0649', "S0162"], 'Azimuth': np.matrix([[90.0], [270.0]]), 'TakeOffAngle': np.matrix([[30.0], [60.0]])},
-                                   'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.5]])}}
+        data = {'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162"], 'Azimuth': np.array([[90.0], [270.0]]), 'TakeOffAngle': np.array([[30.0], [60.0]])},
+                                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.5]])},
+                'PRMSQAmplitude': {'Stations': {'Name': ['S0649', "S0162"], 'Azimuth': np.array([[90.0], [270.0]]), 'TakeOffAngle': np.array([[30.0], [60.0]])},
+                                   'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.5]])}}
         self.inversion = Inversion([data, data], multiple_events=True, algorithm='Time', parallel=False, learning_length=10, chain_length=100, acceptance_rate_window=5,
                                    phy_mem=1, max_time=10, relative_amplitude=False, convert=False)
         self.assertFalse(len(self.inversion.algorithm.pdf_sample))
@@ -1617,10 +1560,10 @@ S003,110,10,1,0.05"""
             os.remove('MTfitOutput_joint_inversionMT.mat')
         except Exception:
             pass
-        data = {'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162"], 'Azimuth': np.matrix([[90.0], [270.0]]), 'TakeOffAngle': np.matrix([[30.0], [60.0]])},
-                                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.5]])},
-                'PRMSQAmplitude': {'Stations': {'Name': ['S0649', "S0162"], 'Azimuth': np.matrix([[90.0], [270.0]]), 'TakeOffAngle': np.matrix([[30.0], [60.0]])},
-                                   'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.1], [0.5]])}}
+        data = {'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162"], 'Azimuth': np.array([[90.0], [270.0]]), 'TakeOffAngle': np.array([[30.0], [60.0]])},
+                                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.5]])},
+                'PRMSQAmplitude': {'Stations': {'Name': ['S0649', "S0162"], 'Azimuth': np.array([[90.0], [270.0]]), 'TakeOffAngle': np.array([[30.0], [60.0]])},
+                                   'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.1], [0.5]])}}
         data2 = data.copy()
         data2['UID'] = 'TestB'
         self.inversion = Inversion([data, data], multiple_events=True, algorithm='Time', parallel=False, learning_length=10, chain_length=100, acceptance_rate_window=5,
@@ -1645,8 +1588,8 @@ S003,110,10,1,0.05"""
         self.tearDown()
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
-        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.001], [0.002]])}},
+        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.001], [0.002]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=1, max_time=10, convert=False)
         self.inversion.location_pdf_files = ['test.scatangle']
         self.inversion.algorithm.max_time = 10
@@ -1665,8 +1608,8 @@ S003,110,10,1,0.05"""
         self.tearDown()
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
-        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.001], [0.002]])}},
+        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.001], [0.002]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=1, max_time=10, output_format='pickle', convert=False)
         self.inversion.location_pdf_files = ['test.scatangle']
         self.inversion.algorithm.max_time = 10
@@ -1686,8 +1629,8 @@ S003,110,10,1,0.05"""
         self.tearDown()
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
-        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.001], [0.002]])}},
+        self.inversion = Inversion({'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.001], [0.002]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=1, max_time=2, output_format='hyp', convert=False)
         self.inversion.location_pdf_files = ['test.scatangle']
         self.inversion._floatmem = 160000
@@ -1712,8 +1655,8 @@ S003,110,10,1,0.05"""
         self.tearDown()
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
-        self.inversion = Inversion({'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.1], [0.1], [0.2]])}},
+        self.inversion = Inversion({'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.1], [0.1], [0.2]])}},
                                    algorithm='Time', parallel=self.parallel, phy_mem=1, max_time=10, convert=False)
         self.inversion.location_pdf_files = ['test.scatangle']
         self.inversion.algorithm.max_time = 10
@@ -1728,8 +1671,8 @@ S003,110,10,1,0.05"""
         self.assertTrue(os.path.exists('TestAMT.mat'))
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
-        self.inversion = Inversion({'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                                                  'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.001], [0.02]])}},
+        self.inversion = Inversion({'UID': 'TestA', 'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                                                  'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.001], [0.02]])}},
                                    algorithm='Time', recover=True, parallel=self.parallel, phy_mem=1, max_time=10, convert=False)
         self.inversion.location_pdf_files = ['test.scatangle']
         self.inversion.algorithm.max_time = 10
@@ -1812,12 +1755,8 @@ class MiscTestCase(TestCase):
 
     def setUp(self):
         self.cwd = os.getcwd()
-        if sys.version_info >= (3, 0):
-            self.tempdir = tempfile.TemporaryDirectory()
-            os.chdir(self.tempdir.name)
-        else:
-            self.tempdir = tempfile.mkdtemp()
-            os.chdir(self.tempdir)
+        self.tempdir = tempfile.TemporaryDirectory()
+        os.chdir(self.tempdir.name)
         self.existing_csv_files = glob.glob('*.csv')
         self.existing_hyp_files = glob.glob('*.hyp')
 
@@ -1835,13 +1774,7 @@ class MiscTestCase(TestCase):
                 except Exception:
                     print('Cannot remove {}'.format(fname))
         os.chdir(self.cwd)
-        if sys.version_info >= (3, 0):
-            self.tempdir.cleanup()
-        else:
-            try:
-                shutil.rmtree(self.tempdir)
-            except:
-                pass
+        self.tempdir.cleanup()
 
     def station_angles(self):
         out = "504.7\n"
@@ -1911,9 +1844,9 @@ class MiscTestCase(TestCase):
 
     def test_polarity_matrix(self):
         data = {'PPolarity': {'Stations': {'Name': ['S0271', 'S0595'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])},
                 'PPolarity2': {'Stations': {'Name': ['S0347', 'S0588'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])}}
         A, Error, IncorrectPolarityProb = polarity_matrix(data)
         self.assertAlmostEquals(A, np.array([[[9.37349864e-34, 2.50000000e-01, 7.50000000e-01, 2.16489014e-17, 3.74969972e-17, 6.12372436e-01]], [[-2.53084463e-32, -7.50000000e-01, -2.50000000e-01, -1.94840113e-16, 1.12490991e-16, 6.12372436e-01]], [
                                 [9.37349864e-34, 2.50000000e-01, 7.50000000e-01, 2.16489014e-17, 3.74969972e-17, 6.12372436e-01]], [[-2.53084463e-32, -7.50000000e-01, -2.50000000e-01, -1.94840113e-16, 1.12490991e-16, 6.12372436e-01]]]))
@@ -1922,16 +1855,16 @@ class MiscTestCase(TestCase):
         location_samples, StationProb = parse_scatangle('test.scatangle')
         A, Error, IncorrectPolarityProb = polarity_matrix(data, location_samples)
         self.assertEqual(A.shape, (4, 2, 6))
-        data = {'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                              'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}}
+        data = {'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                              'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}}
         A, Error, IncorrectPolarityProb = polarity_matrix(data, location_samples)
         self.assertEqual(A.shape, (3, 2, 6))
         self.assertEqual(IncorrectPolarityProb, 0)
         os.remove('test.scatangle')
         data = {'PPolarity': {'Stations': {'Name': ['S0271', 'S0595'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                              'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]]), 'IncorrectPolarityProbability': np.matrix([[0.1], [0.2]])},
+                              'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]]), 'IncorrectPolarityProbability': np.array([[0.1], [0.2]])},
                 'PPolarity2': {'Stations': {'Name': ['S0347', 'S0588'], 'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0])},
-                               'Measured': np.matrix([[1], [-1]]), 'Error': np.matrix([[0.001], [0.001]])}}
+                               'Measured': np.array([[1], [-1]]), 'Error': np.array([[0.001], [0.001]])}}
         A, Error, IncorrectPolarityProb = polarity_matrix(data)
         self.assertAlmostEquals(A, np.array([[[9.37349864e-34, 2.50000000e-01, 7.50000000e-01, 2.16489014e-17, 3.74969972e-17, 6.12372436e-01]], [[-2.53084463e-32, -7.50000000e-01, -2.50000000e-01, -1.94840113e-16, 1.12490991e-16, 6.12372436e-01]], [
                                 [9.37349864e-34, 2.50000000e-01, 7.50000000e-01, 2.16489014e-17, 3.74969972e-17, 6.12372436e-01]], [[-2.53084463e-32, -7.50000000e-01, -2.50000000e-01, -1.94840113e-16, 1.12490991e-16, 6.12372436e-01]]]))
@@ -1942,9 +1875,9 @@ class MiscTestCase(TestCase):
 
     def test_amplitude_ratio_matrix(self):
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0]), 'Name': ['S01', 'S02']},
-                                          'Measured': np.matrix([[1, 2], [-1, 2]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.02]])},
+                                          'Measured': np.array([[1, 2], [-1, 2]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.02]])},
                 'P/SVAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0]), 'Name': ['S01', 'S02']},
-                                       'Measured': np.matrix([[1, 5], [-1, 3]]), 'Error': np.matrix([[0.001, 0.02], [0.001, 0.03]])}}
+                                       'Measured': np.array([[1, 5], [-1, 3]]), 'Error': np.array([[0.001, 0.02], [0.001, 0.03]])}}
         A1, A2, amplitude_ratio, Error1, Error2 = amplitude_ratio_matrix(data)
         A1test = np.array([[[9.37349864e-34, 2.50000000e-01, 7.50000000e-01, 2.16489014e-17, 3.74969972e-17, 6.12372436e-01]],  # P/SH S01
                            [[2.53084463e-32, 7.50000000e-01, 2.50000000e-01,
@@ -1954,9 +1887,9 @@ class MiscTestCase(TestCase):
                            [[2.53084463e-32, 7.50000000e-01, 2.50000000e-01, 1.94840113e-16, -1.12490991e-16, -6.12372436e-01]]])  # P/SV S02
         self.assertAlmostEquals(A1, A1test)
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'Name': ['S01', 'S02'], 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1, 4], [-1, 2]]), 'Error': np.matrix([[0.001, 0.003], [0.001, 0.04]])},
+                                          'Measured': np.array([[1, 4], [-1, 2]]), 'Error': np.array([[0.001, 0.003], [0.001, 0.04]])},
                 'P/SVAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0]), 'Name': ['S01', 'S02']},
-                                       'Measured': np.matrix([[1, 2], [-1, 3]]), 'Error': np.matrix([[0.001, 0.001], [0.001, 0.02]])}}
+                                       'Measured': np.array([[1, 2], [-1, 3]]), 'Error': np.array([[0.001, 0.001], [0.001, 0.02]])}}
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
             [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         A1, A2, amplitude_ratio, Error1, Error2 = amplitude_ratio_matrix(data, location_samples)
@@ -1983,15 +1916,15 @@ class MiscTestCase(TestCase):
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
         data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'Name': ['S0162', 'S0083'], 'TakeOffAngle': np.array([30.0, 60.0])},
-                                          'Measured': np.matrix([[1, 4], [-1, 8]]), 'Error': np.matrix([[0.001, 0.003], [0.001, 0.04]])},
+                                          'Measured': np.array([[1, 4], [-1, 8]]), 'Error': np.array([[0.001, 0.003], [0.001, 0.04]])},
                 'P/SVAmplitudeRatio': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0]), 'Name': ['S0162', 'S0083']},
-                                       'Measured': np.matrix([[1, 2], [-1, 3]]), 'Error': np.matrix([[0.001, 0.001], [0.001, 0.02]])}}
+                                       'Measured': np.array([[1, 2], [-1, 3]]), 'Error': np.array([[0.001, 0.001], [0.001, 0.02]])}}
         location_samples, StationProb = parse_scatangle('test.scatangle')
         A1, A2, amplitude_ratio, Error1, Error2 = amplitude_ratio_matrix(
             data, location_samples)
         self.assertEqual(A1.shape, (4, 2, 6))
-        data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                          'Measured': np.matrix([[1, 1], [-1, 4], [-1, 6]]), 'Error': np.matrix([[0.001, 0.02], [0.5, 0.1], [0.02, 0.03]])}}
+        data = {'P/SHRMSAmplitudeRatio': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                          'Measured': np.array([[1, 1], [-1, 4], [-1, 6]]), 'Error': np.array([[0.001, 0.02], [0.5, 0.1], [0.02, 0.03]])}}
         A1, A2, amplitude_ratio, Error1, Error2 = amplitude_ratio_matrix(
             data, location_samples)
         self.assertEqual(A1.shape, (3, 2, 6))
@@ -1999,14 +1932,14 @@ class MiscTestCase(TestCase):
 
     def test_relative_amplitude_ratio_matrix(self):
         data = {'PAmplitude': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'TakeOffAngle': np.array([30.0, 60.0]), 'Name': ['SA', 'SB']},
-                               'Measured': np.matrix([[1], [-2]]), 'Error': np.matrix([[0.001], [0.02]])}}
+                               'Measured': np.array([[1], [-2]]), 'Error': np.array([[0.001], [0.02]])}}
         a_relative_amplitude, relative_amplitude, percentage_error_relative_amplitude, relative_amplitude_stations = relative_amplitude_ratio_matrix(
             data)
         a_relative_amplitudetest = np.array([[[9.37349864e-34, 2.50000000e-01, 7.50000000e-01, 2.16489014e-17, 3.74969972e-17, 6.12372436e-01]],  # P S01
                                              [[2.53084463e-32, 7.50000000e-01, 2.50000000e-01, 1.94840113e-16, -1.12490991e-16, -6.12372436e-01]]])  # P S02
         self.assertAlmostEquals(a_relative_amplitude, a_relative_amplitudetest)
         data = {'PRMSAmplitude': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'Name': ['S01', 'S02'], 'TakeOffAngle': np.array([30.0, 60.0])},
-                                  'Measured': np.matrix([[4], [-1]]), 'Error': np.matrix([[0.003], [0.04]])}}
+                                  'Measured': np.array([[4], [-1]]), 'Error': np.array([[0.003], [0.04]])}}
         location_samples = [{'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([91.0, 271.0, 120.1]), 'TakeOffAngle':np.array(
             [31.0, 61.0, 12.1])}, {'Name': ['S01', 'S02', 'S03'], 'Azimuth':np.array([92.0, 272.0, 122.1]), 'TakeOffAngle':np.array([32.0, 62.0, 13.1])}]
         a_relative_amplitude, relative_amplitude, percentage_error_relative_amplitude, relative_amplitude_stations = relative_amplitude_ratio_matrix(
@@ -2024,14 +1957,14 @@ class MiscTestCase(TestCase):
         with open('test.scatangle', 'w') as f:
             f.write(self.station_angles())
         data = {'PRMSAmplitude': {'Stations': {'Azimuth': np.array([90.0, 270.0]), 'Name': ['S0162', 'S0083'], 'TakeOffAngle': np.array([30.0, 60.0])},
-                                  'Measured': np.matrix([[4], [-8]]), 'Error': np.matrix([[0.003], [0.04]])}}
+                                  'Measured': np.array([[4], [-8]]), 'Error': np.array([[0.003], [0.04]])}}
 
         location_samples, StationProb = parse_scatangle('test.scatangle')
         a_relative_amplitude, relative_amplitude, percentage_error_relative_amplitude, relative_amplitude_stations = relative_amplitude_ratio_matrix(
             data)
         self.assertEqual(a_relative_amplitude.shape, (2, 1, 6))
-        data = {'PRMSAmplitude': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.matrix([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.matrix([[30.0], [60.0], [35.]])},
-                                  'Measured': np.matrix([[1], [-4], [6]]), 'Error': np.matrix([[0.02], [0.5], [0.03]])}}
+        data = {'PRMSAmplitude': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([[90.0], [270.0], [180.]]), 'TakeOffAngle': np.array([[30.0], [60.0], [35.]])},
+                                  'Measured': np.array([[1], [-4], [6]]), 'Error': np.array([[0.02], [0.5], [0.03]])}}
         a_relative_amplitude, relative_amplitude, percentage_error_relative_amplitude, relative_amplitude_stations = relative_amplitude_ratio_matrix(
             data)
         self.assertEqual(a_relative_amplitude.shape, (3, 1, 6))
@@ -2040,12 +1973,12 @@ class MiscTestCase(TestCase):
     def test__intersect_stations(self):
         relative_amplitude_stations_i = ['SA', 'SB']
         relative_amplitude_stations_j = ['SB', 'SC', ]
-        a_relative_amplitudetest = np.matrix([[9.37349864e-34, 2.50000000e-01, 7.50000000e-01, 2.16489014e-17, 3.74969972e-17, 6.12372436e-01],  # P S01
+        a_relative_amplitudetest = np.array([[9.37349864e-34, 2.50000000e-01, 7.50000000e-01, 2.16489014e-17, 3.74969972e-17, 6.12372436e-01],  # P S01
                                               [2.53084463e-32, 7.50000000e-01, 2.50000000e-01, 1.94840113e-16, -1.12490991e-16, -6.12372436e-01]])  # P S02
-        relative_amplitude_i = np.matrix([[1], [2]])
-        relative_amplitude_j = np.matrix([[3], [4]])
-        percentage_error_relative_amplitude_i = np.matrix([[1], [4]])
-        percentage_error_relative_amplitude_j = np.matrix([[3], [2]])
+        relative_amplitude_i = np.array([[1], [2]])
+        relative_amplitude_j = np.array([[3], [4]])
+        percentage_error_relative_amplitude_i = np.array([[1], [4]])
+        percentage_error_relative_amplitude_j = np.array([[3], [2]])
         a_relative_amplitudetest = np.array([[[8.07958974e-05,   2.65183423e-01,   7.34735781e-01,  # P S01
                                                -6.54610306e-03,  -1.08962046e-02,   6.24243141e-01],  # P S01 Sample 1
                                               [3.42024915e-04,   2.80472402e-01,   7.19185573e-01,
@@ -2058,12 +1991,12 @@ class MiscTestCase(TestCase):
         a1_relative_amplitude_ratio, a2_relative_amplitude_ratio, relative_amplitude_1, relative_amplitude_2, percentage_error_relative_amplitude_1, percentage_error_relative_amplitude_2, n_intersections = _intersect_stations(
             relative_amplitude_stations_i, relative_amplitude_stations_j, a_relative_amplitudetest, a_relative_amplitudetest, relative_amplitude_i, relative_amplitude_j, percentage_error_relative_amplitude_i, percentage_error_relative_amplitude_j)
         self.assertEqual(n_intersections, 1)
-        self.assertEqual(relative_amplitude_2, np.matrix([[3]]))
-        self.assertEqual(relative_amplitude_1, np.matrix([[2]]))
+        self.assertEqual(relative_amplitude_2, np.array([[3]]))
+        self.assertEqual(relative_amplitude_1, np.array([[2]]))
         self.assertEqual(
-            percentage_error_relative_amplitude_1, np.matrix([[4]]))
+            percentage_error_relative_amplitude_1, np.array([[4]]))
         self.assertEqual(
-            percentage_error_relative_amplitude_2, np.matrix([[3]]))
+            percentage_error_relative_amplitude_2, np.array([[3]]))
         self.assertTrue(
             (a1_relative_amplitude_ratio == a_relative_amplitudetest[1, :]).all())
         self.assertTrue(

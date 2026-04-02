@@ -15,7 +15,7 @@ import time
 import gc
 import copy
 import logging
-import sys
+from typing import Any
 
 
 import numpy as np
@@ -136,7 +136,7 @@ class DataError(ValueError):
     pass
 
 
-class McMCAlgorithmCreator(object):
+class McMCAlgorithmCreator:
 
     """
     Generates the Markov chain Monte Carlo algorithm from parameters
@@ -250,7 +250,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
     # Returns zero for testing - should be set in __init__
     default_sampling_priors = {'uniform_prior': zero_prior}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """
         Initialisation of marginalised Markov chain Monte Carlo Algorithm
 
@@ -267,7 +267,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
             min_number_initialisation_samples:[30000] Minimum number of samples for grid based iteration sampler.
             number_samples:[10000] Number of samples to use for each iteration of the grid sampler.
         """
-        super(MarginalisedMarkovChainMonteCarlo, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.mcmc = True
         self.number_samples = 1
         self._tried = 0
@@ -306,7 +306,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
         # Debug flag - adds learning samples and learning results etc to output
         # (large data size)
         if self._debug:
-            self._debug_output = {'bis': [np.matrix(np.zeros((6, 0))), []], 'bit': [], 'bir': [], 'cs': [np.matrix(np.zeros((6, 0))), []]}
+            self._debug_output = {'bis': [np.zeros((6, 0)), []], 'bit': [], 'bir': [], 'cs': [np.zeros((6, 0)), []]}
         # Sets prior function as uniform prior
         gc.collect()
         self.t0 = time.time()
@@ -332,7 +332,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
     def total_number_samples(self):
         return self._tried
 
-    def acceptance_rate(self):
+    def acceptance_rate(self) -> float:
         """
         Gets acceptance rate.
 
@@ -402,7 +402,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
                 ratio = 0
         return ratio
 
-    def output(self, *args, **kwargs):
+    def output(self, *args, **kwargs) -> tuple[dict, str]:
         """
         Returns output dictionary
 
@@ -414,7 +414,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
         else:
             args = tuple(args)
             args = args[:2]+(0,)
-        output, output_string = super(MarginalisedMarkovChainMonteCarlo, self).output(*args, **kwargs)
+        output, output_string = super().output(*args, **kwargs)
         output.update({'acceptance_rate': self.acceptance_rate()})
         output.update({'accepted': self._accepted})
         if self._debug:
@@ -462,7 +462,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
                 newAlpha = alpha
         return newAlpha
 
-    def transition_pdf(self, x, x1):
+    def transition_pdf(self, x: Any, x1: Any) -> float:
         """
         Evaluates transition probability for x and x1
 
@@ -471,7 +471,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
         """
         return 0
 
-    def prior(self, x, *args, **kwargs):
+    def prior(self, x: Any, *args, **kwargs) -> float:
         """
         Evaluates prior probability for x
 
@@ -480,7 +480,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
         """
         return self._prior(x, *args, **kwargs)
 
-    def new_sample(self):
+    def new_sample(self) -> Any:
         """
         Generates new sample
 
@@ -490,7 +490,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
         self.xi_1 = self.random_sample()
         return self.convert_sample(self.xi_1)
 
-    def acceptance(self, x, ln_likelihoodx, dc_prior=0.5):
+    def acceptance(self, x: Any, ln_likelihoodx: float, dc_prior: float = 0.5) -> float:
         """
         Calculate acceptance for x given ln_likelihoodx
 
@@ -510,7 +510,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
         else:
             return {}, False, False, 0
 
-    def learning_check(self):
+    def learning_check(self) -> bool:
         """Check if still in learning period"""
         return self._number_learning_accepted < self.learning_length
 
@@ -570,7 +570,12 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
         """Add result xi_1 with ln_pdf ln_pi_1"""
         self.xi = xi_1  # Set new sample to old sample
         # set old ln_likelihood to new ln_likelihood
-        self.ln_likelihood_xi = float(ln_pi_1)
+        if isinstance(ln_pi_1, LnPDF):
+            self.ln_likelihood_xi = ln_pi_1._ln_pdf.flat[0]
+        elif isinstance(ln_pi_1, np.ndarray):
+            self.ln_likelihood_xi = ln_pi_1.flat[0]
+        else:
+            self.ln_likelihood_xi = float(ln_pi_1)
         # MULTIPLE_EVENTS
         if self.number_events > 1:
             for i, xi in enumerate(self.xi):
@@ -593,7 +598,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
             self.pdf_sample.append(self.convert_sample(xi_1), ln_pi_1, 1, scale_factori_1)
             self._tried += 1
 
-    def iterate(self, result):
+    def iterate(self, result: dict) -> tuple[Any, bool]:
         """
         Iterate from result
 
@@ -625,8 +630,8 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
                             if self._number_initialisation_samples < self._min_number_initialisation_samples or not maximum_initialisation_probability:
                                 # Update max_prob/mt combinations for each
                                 # event
-                                if float(ln_pdf[0, ln_pdf.argmax(-1)]) > self._max_initialisation_probability[i]:
-                                    self._max_initialisation_probability[i] = float(ln_pdf[0, ln_pdf.argmax(-1)])
+                                if ln_pdf[0, ln_pdf.argmax(-1)].item() > self._max_initialisation_probability[i]:
+                                    self._max_initialisation_probability[i] = ln_pdf[0, ln_pdf.argmax(-1)].item()
                                     self._init_max_mt[i] = individual_result['moment_tensors'][:, ln_pdf.argmax(-1)[0]]
                 # Single event or full joint PDF initialisation
                 else:
@@ -639,9 +644,9 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
                         # number or if there are no non-zero probability
                         # samples
                         if self._number_initialisation_samples < self._min_number_initialisation_samples or not maximum_initialisation_probability:
-                            if float(ln_pdf[0, ln_pdf.argmax(-1)]) > self._max_initialisation_probability:
+                            if ln_pdf[0, ln_pdf.argmax(-1)].item() > self._max_initialisation_probability:
                                 # Update max_prob/mt combinations for the event
-                                self._max_initialisation_probability = float(ln_pdf[0, ln_pdf.argmax(-1)])
+                                self._max_initialisation_probability = ln_pdf[0, ln_pdf.argmax(-1)].item()
                                 if isinstance(result['moment_tensors'], list):
                                     self._init_max_mt = []
                                     for mt in result['moment_tensors']:
@@ -660,7 +665,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
                 # there are non-zero prob samples
                 if self._number_initialisation_samples > self._min_number_initialisation_samples and maximum_initialisation_probability:
                     if (isinstance(self.quality_check, (float, int)) and not isinstance(self.quality_check, bool) or self.quality_check) and quality_check_ok:
-                        raise DataError("Data Error: Non-zero sample percentage above {}%".format(self.quality_check))
+                        raise DataError(f"Data Error: Non-zero sample percentage above {self.quality_check}%")
                     # Have solutions - initialising finished
                     # ADD LOGIC FOR PERCENTAGE NON-ZERO
                     # Need to get and keep track of number of samples
@@ -687,14 +692,14 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
                     if self.number_events > 1 and self._initialiser:
                         nonzero_events = ""
                         for i, nonzero in enumerate(self._init_nonzero):
-                            nonzero_events += 'Event {}: {}% -'.format(i+1, str(100*float(nonzero)/float(self._number_initialisation_samples))[:3])
+                            nonzero_events += f'Event {i+1}: {str(100*float(nonzero)/float(self._number_initialisation_samples))[:3]}% -'
                     else:
-                        nonzero_events = '{}%'.format(str(100*float(self._init_nonzero)/float(self._number_initialisation_samples))[:3])
-                    logger.info('Algorithm initialised (Percentage non-zero - {}) - Starting learning period\n---------'.format(nonzero_events))
+                        nonzero_events = f'{str(100*float(self._init_nonzero)/float(self._number_initialisation_samples))[:3]}%'
+                    logger.info(f'Algorithm initialised (Percentage non-zero - {nonzero_events}) - Starting learning period\n---------')
                     self._initialiser = False
                     # Debug output (large data size)
                     if self._debug:
-                        self._debug_output['bis'][0] = np.append(self._debug_output['bis'][0], np.matrix(self._init_max_mt).T, axis=1)
+                        self._debug_output['bis'][0] = np.append(self._debug_output['bis'][0], np.asarray(self._init_max_mt).T, axis=1)
                     # Set t0 after initialisation
                     self.t0 = time.time()
                     self.tx = self.t0
@@ -728,7 +733,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
             # Check if need to do learning transition PDF update
             if self.learning_check() and len(self._learning_accepted) >= self.acceptance_rate_window:
                 self._modify_acceptance_rate()
-                logger.info('Learning {:.4f}% complete - this learning iteration: {} accepted and {}  tried - acceptance rate: {:.6f}'.format(100*self._number_learning_accepted/float(self.learning_length), sum(self._learning_accepted), len(self._learning_accepted), self.acceptance_rate()))
+                logger.info(f'Learning {100*self._number_learning_accepted/float(self.learning_length):.4f}% complete - this learning iteration: {sum(self._learning_accepted)} accepted and {len(self._learning_accepted)}  tried - acceptance rate: {self.acceptance_rate():.6f}')
                 if self._debug:  # Append rate info to Debug output
                     self._debug_output['bir'].append(float(
                         sum(self._learning_accepted[-self.acceptance_rate_window:]))/len(self._learning_accepted[-self.acceptance_rate_window:]))
@@ -744,16 +749,16 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
                         self._learning_accepted = self._learning_accepted[
                             -self.acceptance_rate_window:]
                         self._modify_acceptance_rate()
-                        logger.info('Learning complete - this learning iteration: {} accepted and {} tried - acceptance rate: {:.6f}'.format(sum(self._learning_accepted), len(self._learning_accepted), self.acceptance_rate()))
+                        logger.info(f'Learning complete - this learning iteration: {sum(self._learning_accepted)} accepted and {len(self._learning_accepted)} tried - acceptance rate: {self.acceptance_rate():.6f}')
                     # Print out initialisation completion
                     t1 = time.time()
-                    logger.info("\nLearning elapsed time: {}".format(t1-self.t0))
+                    logger.info(f"\nLearning elapsed time: {t1-self.t0}")
                     logger.info("\n\nStarting main inversion\n---------")
                     self.t0 = t1
                     # Add sample (added to saved chain)
                     self._add_new(self.xi, self.ln_likelihood_xi, self.scale_factor_i)
                 elif not self._tried % 100:
-                    logger.info('{} samples tried: {} samples accepted'.format(self._tried, self._accepted))
+                    logger.info(f'{self._tried} samples tried: {self._accepted} samples accepted')
             gc.collect()
             return self.new_sample(), False
         # Error handling
@@ -766,7 +771,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
             gc.collect()
             return [], True
 
-    def initialise(self):
+    def initialise(self) -> tuple[Any, bool]:
         """
         Initialse samples
 
@@ -806,7 +811,7 @@ class MarginalisedMarkovChainMonteCarlo(BaseAlgorithm):
         """
         return x
 
-    def convert_sample(self, x):
+    def convert_sample(self, x: Any) -> Any:
         """
         Converts sample to MT form
 
@@ -861,10 +866,14 @@ class MarginalisedMetropolisHastings(MarginalisedMarkovChainMonteCarlo):
         Returns
             float:acceptance
         """
-        if isinstance(self.ln_likelihood_xi, (np.ndarray, LnPDF)):
-            self.ln_likelihood_xi = float(self.ln_likelihood_xi)
-        if isinstance(ln_likelihood_x, (np.ndarray, LnPDF)):
-            ln_likelihood_x = float(ln_likelihood_x)
+        if isinstance(self.ln_likelihood_xi, LnPDF):
+            self.ln_likelihood_xi = self.ln_likelihood_xi._ln_pdf.flat[0]
+        elif isinstance(self.ln_likelihood_xi, np.ndarray):
+            self.ln_likelihood_xi = self.ln_likelihood_xi.flat[0]
+        if isinstance(ln_likelihood_x, LnPDF):
+            ln_likelihood_x = ln_likelihood_x._ln_pdf.flat[0]
+        elif isinstance(ln_likelihood_x, np.ndarray):
+            ln_likelihood_x = ln_likelihood_x.flat[0]
         # Handle multiple events
         if ln_likelihood_x == -np.inf:
             return 0
@@ -925,7 +934,7 @@ class MarginalisedMetropolisHastingsGaussianTape(MarginalisedMetropolisHastings)
         This is a child class of the MarginalisedMetropolisHastings
         """
         self.default_sampling_priors = {'uniform_prior': uniform_prior, 'flat_prior': flat_prior}
-        super(MarginalisedMetropolisHastingsGaussianTape, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.alpha = {'kappa': np.pi/5, 'h': 0.2, 'sigma': np.pi/10, 'gamma': np.pi/15,
                       'delta': np.pi/10, 'alpha': np.pi/10, 'poisson': 0.2}
         # Set up alpha for multiple events
@@ -990,7 +999,7 @@ class MarginalisedMetropolisHastingsGaussianTape(MarginalisedMetropolisHastings)
                 _denominator = gaussian_cdf(np.pi/2, x1['sigma'], self.alpha['sigma'])-gaussian_cdf(-np.pi/2, x1['sigma'], self.alpha['sigma'])
                 p *= _numerator/_denominator
             p = np.array(p).flatten()
-            return float(p[0])
+            return p[0].item()
         else:
             return 0
 
@@ -1092,7 +1101,7 @@ class MarginalisedMetropolisHastingsGaussianTape(MarginalisedMetropolisHastings)
         if self.number_events > 1:
             all_x = self.xi
             if not isinstance(all_x, list):
-                raise TypeError('Expect self.xi to be list not {}\n self.xi = {}'.format(type(self.xi), self.xi))
+                raise TypeError(f'Expect self.xi to be list not {type(self.xi)}\n self.xi = {self.xi}')
             all_alpha = self.alpha
             x = []
             if not isinstance(all_x[0], dict):
@@ -1199,7 +1208,7 @@ class MarginalisedMetropolisHastingsGaussianTape(MarginalisedMetropolisHastings)
             basic_cdc = self.basic_cdc
         max_poisson = self._max_poisson
         min_poisson = self._min_poisson
-        return super(MarginalisedMetropolisHastingsGaussianTape, self).prior(x, dc, basic_cdc, max_poisson, min_poisson)
+        return super().prior(x, dc, basic_cdc, max_poisson, min_poisson)
 
 
 class IterativeMetropolisHastingsGaussianTape(MarginalisedMetropolisHastingsGaussianTape):
@@ -1225,7 +1234,7 @@ class IterativeMetropolisHastingsGaussianTape(MarginalisedMetropolisHastingsGaus
 
         This is a child class of the MarginalisedMetropolisHastingsGaussianTape class
         """
-        super(IterativeMetropolisHastingsGaussianTape, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.chain_length = kwargs.get('chain_length', 1000000)
 
     def iterate(self, result):
@@ -1239,11 +1248,11 @@ class IterativeMetropolisHastingsGaussianTape(MarginalisedMetropolisHastingsGaus
             new_sample,End where End is a boolean flag to end the chain if the length of accepted samples is longer than the chain length.
 
         """
-        task, end = super(IterativeMetropolisHastingsGaussianTape, self).iterate(result)
+        task, end = super().iterate(result)
         # Check chain length
         if self._tried >= self.chain_length:
             self._t1 = time.time()
-            logger.info('\nChain complete\nChain elapsed time: {}\n'.format(self._t1-self.t0))
+            logger.info(f'\nChain complete\nChain elapsed time: {self._t1-self.t0}\n')
             return [], True
         else:
             return task, end
@@ -1275,7 +1284,7 @@ class IterativeTransDMetropolisHastingsGaussianTape(IterativeMetropolisHastingsG
         This is a child class of the IterativeMetropolisHastingsGaussianTape
 
         """
-        super(IterativeTransDMetropolisHastingsGaussianTape, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # Update alpha with dc balance vector parameters
         if self.number_events > 1:
             for alpha in self.alpha:
@@ -1343,7 +1352,7 @@ class IterativeTransDMetropolisHastingsGaussianTape(IterativeMetropolisHastingsG
             return self.xi_1
         else:
             # Normal new sample
-            return super(IterativeTransDMetropolisHastingsGaussianTape, self)._new_sample_single()
+            return super()._new_sample_single()
 
     def jump_params(self, x=False):
         """
@@ -1402,12 +1411,12 @@ class IterativeTransDMetropolisHastingsGaussianTape(IterativeMetropolisHastingsG
             float:acceptance
         """
         if isinstance(self.ln_likelihood_xi, np.ndarray):
-            self.ln_likelihood_xi = float(self.ln_likelihood_xi)
+            self.ln_likelihood_xi = np.asarray(self.ln_likelihood_xi).flat[0]
         # Handle jump parameters
         if self.jump and (self.ln_likelihood_xi > -np.inf):
             # No jump - may have been accidentally picked up
             if self.xi['gamma'] == x['gamma'] and self.xi['delta'] == x['delta']:
-                return super(IterativeTransDMetropolisHastingsGaussianTape, self).acceptance(x, ln_likelihoodx)
+                return super().acceptance(x, ln_likelihoodx)
             # dc to mt jump
             elif self.xi['gamma'] == 0.0 and self.xi['delta'] == 0.0:
                 xi = copy.copy(self.xi)
@@ -1426,9 +1435,9 @@ class IterativeTransDMetropolisHastingsGaussianTape(IterativeMetropolisHastingsG
                 # self.xi contains gamma delta generated using jump Params
                 return min(1, (self.jump_params(self.xi)*self.prior(xp))/(self.prior(self.xi))*model_prior_ratio*np.exp(ln_likelihoodx-self.ln_likelihood_xi))
             else:  # no jump may have been accidentally picked up
-                return super(IterativeTransDMetropolisHastingsGaussianTape, self).acceptance(x, ln_likelihoodx)
+                return super().acceptance(x, ln_likelihoodx)
         else:
-            return super(IterativeTransDMetropolisHastingsGaussianTape, self).acceptance(x, ln_likelihoodx)
+            return super().acceptance(x, ln_likelihoodx)
 
     def iterate(self, *args, **kwargs):
         """
@@ -1436,14 +1445,14 @@ class IterativeTransDMetropolisHastingsGaussianTape(IterativeMetropolisHastingsG
 
         Calculates the acceptance and handles the pDC output
         """
-        MTs, end = super(IterativeTransDMetropolisHastingsGaussianTape, self).iterate(*args, **kwargs)
+        MTs, end = super().iterate(*args, **kwargs)
         # Print pDC output
         if end:
             if isinstance(self.p_dc, float):
-                logging.info('Probability of dc: {:.6f}'.format(float(self.p_dc)/float(len(self.pdf_sample.ln_pdf))))
+                logging.info(f'Probability of dc: {float(self.p_dc)/float(len(self.pdf_sample.ln_pdf)):.6f}')
             elif isinstance(self.p_dc, list):
                 for i, pdc in enumerate(self.p_dc):
-                    logging.info('Event - {} Probability of dc: {:.6f}'.format(i, float(pdc)/float(len(self.pdf_sample.ln_pdf))))
+                    logging.info(f'Event - {i} Probability of dc: {float(pdc)/float(len(self.pdf_sample.ln_pdf)):.6f}')
         if self.jump:
             # check current sample
             self.dc = (self.xi['gamma'] == 0.0 and self.xi['delta'] == 0.0)
@@ -1455,7 +1464,7 @@ class IterativeTransDMetropolisHastingsGaussianTape(IterativeMetropolisHastingsG
 
         Return output dict including pDC value
         """
-        output, output_string = super(IterativeTransDMetropolisHastingsGaussianTape, self).output(*args, **kwargs)
+        output, output_string = super().output(*args, **kwargs)
         output['pDC'] = self.p_dc
         return output, output_string
 
@@ -1484,7 +1493,7 @@ class IterativeMultipleTryMetropolisHastingsGaussianTape(IterativeMetropolisHast
         This is a child class of the IterativeMetropolisHastingsGaussianTape
 
         """
-        super(IterativeMultipleTryMetropolisHastingsGaussianTape, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._max_number_samples = kwargs.get('number_samples', 1000)
         self._number_samples = min(int(1/self.min_acceptance_rate), self._max_number_samples)
 
@@ -1520,7 +1529,7 @@ class IterativeMultipleTryMetropolisHastingsGaussianTape(IterativeMetropolisHast
         else:
             logger.info(C_EXTENSION_FALLBACK_LOG_MSG)
         # Otherwise/Fallback to use python code
-        return super(IterativeMultipleTryMetropolisHastingsGaussianTape, self).new_sample()
+        return super().new_sample()
 
     def _acceptance_check(self, xi_1, ln_pi_1, scale_factori_1=False):
         """Check acceptance for multiple tries"""
@@ -1543,10 +1552,7 @@ class IterativeMultipleTryMetropolisHastingsGaussianTape(IterativeMetropolisHast
                             int(1.1*self._number_samples), self._number_samples+1)])
                     return xi_1, ln_pi_1, False, index
                 else:
-                    if sys.version_info.major > 2:
-                        is_uniform = self._prior.__name__ == 'uniform_prior'
-                    else:
-                        is_uniform = self._prior.func_name == 'uniform_prior'
+                    is_uniform = self._prior.__name__ == 'uniform_prior'
                     # Mutliple events
                     if self.number_events > 1:
                         if hasattr(self, 'dc_prior') and isinstance(self.dc_prior, (float, int)):
@@ -1635,7 +1641,7 @@ class IterativeMultipleTryMetropolisHastingsGaussianTape(IterativeMetropolisHast
                     else:
                         _xi_1 = xi_1
                 # Get acceptance result
-                oxi_1, oln_pi_1, a, b = super(IterativeMultipleTryMetropolisHastingsGaussianTape, self)._acceptance_check(_xi_1, np.asarray(ln_pi_1).flatten()[u],
+                oxi_1, oln_pi_1, a, b = super()._acceptance_check(_xi_1, np.asarray(ln_pi_1).flatten()[u],
                                                                                                                           False, dc_prior=getattr(self, 'dc_prior', False))
                 if oln_pi_1:
                     # If accepted sample, try to get the sacale_factor
@@ -1690,11 +1696,11 @@ class IterativeMultipleTryMetropolisHastingsGaussianTape(IterativeMetropolisHast
                 dc = [False for i in range(self.number_events)]
             else:
                 dc = False
-            return super(IterativeMultipleTryMetropolisHastingsGaussianTape, self)._acceptance_check(xi_1, ln_pi_1, scale_factori_1, dc_prior=getattr(self, 'dc_prior', dc))
+            return super()._acceptance_check(xi_1, ln_pi_1, scale_factori_1, dc_prior=getattr(self, 'dc_prior', dc))
 
     def _modify_acceptance_rate(self, non_zero_percentage=False):
         """Adjusts the acceptance rate parameters based on the targetted acceptance rate."""
-        super(IterativeMultipleTryMetropolisHastingsGaussianTape, self)._modify_acceptance_rate(non_zero_percentage)
+        super()._modify_acceptance_rate(non_zero_percentage)
         self._number_samples = min(int(1/self.min_acceptance_rate), self._max_number_samples)
 
 
@@ -1719,7 +1725,7 @@ class IterativeMultipleTryTransDMetropolisHastingsGaussianTape(IterativeTransDMe
         This is a child class of both the IterativeTransDMetropolisHastingsGaussianTape and IterativeMultipleTryMetropolisHastingsGaussianTape
 
         """
-        super(IterativeMultipleTryTransDMetropolisHastingsGaussianTape, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def new_sample(self):
         """

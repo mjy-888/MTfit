@@ -24,7 +24,7 @@ from ..probability import LnPDF
 RETURN_CODES = [10, 20]
 
 
-class PoisonPill(object):
+class PoisonPill:
     pass
 
 
@@ -51,7 +51,8 @@ class Worker(multiprocessing.Process):
 
     """
 
-    def __init__(self, task_queue, result_queue, single_life=False):
+    def __init__(self, task_queue: multiprocessing.Queue, result_queue: multiprocessing.Queue,
+                 single_life: bool = False):
         """
         Worker initialisation
 
@@ -60,12 +61,12 @@ class Worker(multiprocessing.Process):
             result_queue: multiprocessing.Queue object for storing results
             single_life:[False] Boolean flag for killing worker after single job.
         """
-        super(Worker, self).__init__()
+        super().__init__()
         self.task_queue = task_queue
         self.result_queue = result_queue
         self.single_life = single_life
         self.__closed__ = False
-        print('{} Initialised'.format(self.name))
+        print(f'{self.name} Initialised')
         print(self._Popen)
 
     def run(self):
@@ -99,27 +100,26 @@ class Worker(multiprocessing.Process):
 
     def start(self):
         print(self.name, 'Starting')
-        super(Worker, self).start()
+        super().start()
         print(self.name, 'Started', self._popen.pid)
 
     def join(self):
         print(self.name, 'Ending')
-        super(Worker, self).join()
+        super().join()
         print(self.name, 'Ended')
 
 
-# Job Pool
-class JobPool(object):
+class JobPool:
 
     """
-    Manages workers and  queues for multiprocessing
+    Manages workers and queues for multiprocessing
 
     Simple object to manage the Worker objects and the task and result
     queues for multiprocessing. Has methods for adding a task and getting
     a result.
     """
 
-    def __init__(self, number_workers=0, task=None, single_life=False):
+    def __init__(self, number_workers: int = 0, task=None, single_life: bool = False):
         """
         Initialisation of JobPool
 
@@ -144,7 +144,7 @@ class JobPool(object):
         self.task_class = task
         if not number_workers:
             number_workers = multiprocessing.cpu_count()
-            if len([u for u in os.environ.keys() if 'PBS_' in u]):
+            if any('PBS_' in u for u in os.environ):
                 try:
                     number_workers = int(os.environ['PBS_NUM_PPN'])
                 except Exception:
@@ -156,7 +156,7 @@ class JobPool(object):
         self.clean_workers()
         print('Job Pool Initialised')
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Gets number of workers
 
@@ -191,7 +191,7 @@ class JobPool(object):
         for i, worker in enumerate(self.workers):
             if not worker.is_alive():
                 if not self.single_life:
-                    print(str(worker.name)+' Dead')
+                    print(f'{worker.name} Dead')
                 self.workers.pop(i)
                 del worker
         while len(self.workers) < self.number_workers:
@@ -245,7 +245,7 @@ class JobPool(object):
                 result[i] = self.rebuild_ln_pdf(res)
         return result
 
-    def all_results(self):
+    def all_results(self) -> list:
         """
         Returns all the results
 

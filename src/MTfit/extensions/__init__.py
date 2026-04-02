@@ -525,10 +525,10 @@ Where the ``filename`` is the location :term:`PDF` filename and ``number_locatio
 The expected format for the location_samples and location_probability return values are::
 
     location_samples = [
-        {'Name': ['S01', 'S02', ...], 'Azimuth': np.matrix([[121.], [37.], ...]),
-            'TakeOffAngle': np.matrix([[88.], [12.], ...])},
-         {'Name': ['S01', 'S02', ...],'Azimuth': np.matrix([[120.], [36.], ...]),
-            'TakeOffAngle': np.matrix([[87.], [11.], ...])}
+        {'Name': ['S01', 'S02', ...], 'Azimuth': np.array([[121.], [37.], ...]),
+            'TakeOffAngle': np.array([[88.], [12.], ...])},
+         {'Name': ['S01', 'S02', ...],'Azimuth': np.array([[120.], [36.], ...]),
+            'TakeOffAngle': np.array([[87.], [11.], ...])}
         ]
     location_probability=[0.8,1.2, ...]
 
@@ -566,8 +566,8 @@ Where the filename is the location PDF filename and number_location_samples is t
 
 The expected format for the location_samples and location_probability return values are:
 
-    location_samples = [{'Name': ['S001', 'S002', ...], 'Azimuth': np.matrix([[121.], [37.], ...]), 'TakeOffAngle': np.matrix([[88.], [12.], ...])},
-         {'Name': ['S001', 'S002', ...], 'Azimuth': np.matrix([[120.], [36.], ...]), 'TakeOffAngle': np.matrix([[87.], [11.], ...])}]
+    location_samples = [{'Name': ['S001', 'S002', ...], 'Azimuth': np.array([[121.], [37.], ...]), 'TakeOffAngle': np.array([[88.], [12.], ...])},
+         {'Name': ['S001', 'S002', ...], 'Azimuth': np.array([[120.], [36.], ...]), 'TakeOffAngle': np.array([[87.], [11.], ...])}]
     location_probability = [0.8, 1.2, ...]
 
 These are then used in a Monte Carlo method approach to include the location uncertainty in the inversion.

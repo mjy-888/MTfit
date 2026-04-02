@@ -12,11 +12,12 @@ Extension for handling scatangle files (installed with the main module, but prov
 # Applications for commercial use should be made to Schlumberger or the University of Cambridge.
 
 
-import os
-import glob
-import time
+import argparse
 import logging
 import operator
+import time
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -32,14 +33,13 @@ except Exception:
     logger.exception('Error importing c extension')
     cscatangle = None
 
-try:
-    import argparse  # noqa F401
-    _argparse = True  # noqa F811
-except Exception:
-    _argparse = False
 
-
-def parse_scatangle(filename, number_location_samples=0, bin_size=0, _use_c=True):
+def parse_scatangle(
+    filename: str,
+    number_location_samples: int = 0,
+    bin_size: float = 0,
+    _use_c: bool = True,
+) -> tuple[list[dict[str, Any]], list[float]]:
     """
     Read station angles scatter file
 
@@ -111,8 +111,8 @@ def parse_scatangle(filename, number_location_samples=0, bin_size=0, _use_c=True
     for line in station_file:
         if line.lstrip('\r') == '\n':
             if len(record['Name']) and multiplier:
-                record['Azimuth'] = np.matrix(record['Azimuth']).T
-                record['TakeOffAngle'] = np.matrix(record['TakeOffAngle']).T
+                record['Azimuth'] = np.array(record['Azimuth']).reshape(-1, 1)
+                record['TakeOffAngle'] = np.array(record['TakeOffAngle']).reshape(-1, 1)
                 sample_records.append(record)
                 # Using multipliers therefore prob = 1
                 multipliers.append(multiplier)
@@ -127,8 +127,8 @@ def parse_scatangle(filename, number_location_samples=0, bin_size=0, _use_c=True
             record['Azimuth'].append(float(line.split()[1]))
             record['TakeOffAngle'].append(float(line.rstrip().rstrip('\r').split()[2]))
     if len(record['Name']):
-        record['Azimuth'] = np.matrix(record['Azimuth']).T
-        record['TakeOffAngle'] = np.matrix(record['TakeOffAngle']).T
+        record['Azimuth'] = np.array(record['Azimuth']).reshape(-1, 1)
+        record['TakeOffAngle'] = np.array(record['TakeOffAngle']).reshape(-1, 1)
         sample_records.append(record)
         multipliers.append(multiplier)
     if number_location_samples and number_location_samples < len(sample_records):
@@ -154,13 +154,13 @@ def parse_scatangle(filename, number_location_samples=0, bin_size=0, _use_c=True
             logger.info('C code used')
             t0 = time.time()
             sample_records, multipliers = cscatangle.bin_scatangle(sample_records, np.array(multipliers), bin_size)
-            logger.info('Elapsed time = {}'.format(time.time()-t0))
+            logger.info(f'Elapsed time = {time.time()-t0}')
         else:
             logger.info('Python code used')
             t0 = time.time()
             for i, record in enumerate(sample_records):
                 if not (i+1) % 10:
-                    logger.info('{} records completed'.format(i+1))
+                    logger.info(f'{i+1} records completed')
                 j = i+1
                 multiplier = multipliers[i]
                 while j < len(sample_records):
@@ -173,12 +173,16 @@ def parse_scatangle(filename, number_location_samples=0, bin_size=0, _use_c=True
                         j += 1
                 new_multipliers.append(multiplier)
             multipliers = new_multipliers
-            logger.info('Elapsed time = {}'.format(time.time()-t0))
-        logger.info('{} degree binning reduced {}  samples to {} samples.'.format(bin_size, old_size, len(sample_records)))
+            logger.info(f'Elapsed time = {time.time()-t0}')
+        logger.info(f'{bin_size} degree binning reduced {old_size}  samples to {len(sample_records)} samples.')
     return sample_records, multipliers
 
 
-def _output_scatangle(filename, samples, probabilities):
+def _output_scatangle(
+    filename: str,
+    samples: list[dict[str, Any]],
+    probabilities: list[float],
+) -> None:
     """
     Output scatangle file from samples and probabilities.
 
@@ -194,13 +198,17 @@ def _output_scatangle(filename, samples, probabilities):
         output.append(str(probabilities[i]))
         # Loop over stations
         for j, st in enumerate(sample['Name']):
-            output.append(st+'\t'+str(float(sample['Azimuth'][j]))+'\t'+str(float(sample['TakeOffAngle'][j])))
+            output.append(f"{st}\t{float(sample['Azimuth'][j])}\t{float(sample['TakeOffAngle'][j])}")
         output.append('')
     with open(filename, 'w') as f:
         f.write('\n'.join(output))
 
 
-def bin_scatangle(filename, number_location_samples=0, bin_size=1):
+def bin_scatangle(
+    filename: str,
+    number_location_samples: int = 0,
+    bin_size: float = 1,
+) -> tuple[str, str]:
     """
     Bin scatangle samples into bins of size given by the bin size argument, if all the differences in angles for each station between the two samples are within that range
 
@@ -213,13 +221,14 @@ def bin_scatangle(filename, number_location_samples=0, bin_size=1):
     sample_records, multipliers = parse_scatangle(filename, number_location_samples, bin_size)
     old_filename = filename
     # Add _bin_ to filename
-    filename = ('_bin_'+str(bin_size)).join(os.path.splitext(filename))
+    p = Path(filename)
+    filename = str(p.with_name(f"{p.stem}_bin_{bin_size}{p.suffix}"))
     # Output to disk
     _output_scatangle(filename, sample_records, multipliers)
     return old_filename, filename
 
 
-class BinScatangleTask(object):
+class BinScatangleTask:
     """
     Scatangle Binning task
 
@@ -232,7 +241,7 @@ class BinScatangleTask(object):
             bin_size: bin size.
     """
 
-    def __init__(self, fid, number_location_samples=0, bin_size=1.0):
+    def __init__(self, fid: str, number_location_samples: int = 0, bin_size: float = 1.0):
         """
         Initialisation of MatlabOutputTask
 
@@ -245,7 +254,7 @@ class BinScatangleTask(object):
         self.number_location_samples = number_location_samples
         self.bin_size = bin_size
 
-    def __call__(self):
+    def __call__(self) -> tuple[str, str] | int:
         """
         Runs the MATLAB output task
 
@@ -262,7 +271,14 @@ class BinScatangleTask(object):
             return 20
 
 
-def bin_scatangle_files(files, number_location_samples=0, bin_scatangle_size=1.0, parallel=True, mpi=False, **kwargs):
+def bin_scatangle_files(
+    files: list[str] | str,
+    number_location_samples: int = 0,
+    bin_scatangle_size: float = 1.0,
+    parallel: bool = True,
+    mpi: bool = False,
+    **kwargs: Any,
+) -> list[str]:
     """
     Bin scatangle samples into bins of size given by the bin size argument,
     if all the differences in angles for each station between the two samples are within that range
@@ -278,10 +294,10 @@ def bin_scatangle_files(files, number_location_samples=0, bin_scatangle_size=1.0
         new_files:list of new file names
     """
     # check path and glob
-    if not isinstance(files, list) and os.path.isdir(files):
-        files = glob.glob('*.'+kwargs['angle_extension'])
+    if not isinstance(files, list) and Path(files).is_dir():
+        files = [str(p) for p in Path(files).glob(f"*.{kwargs['angle_extension']}")]
     elif not isinstance(files, list) and '*' in files:
-        files = glob.glob(files)
+        files = [str(p) for p in Path('.').glob(files)]
     # Make sure the files are a list
     if not isinstance(files, list):
         files = [files]
@@ -336,7 +352,11 @@ def bin_scatangle_files(files, number_location_samples=0, bin_scatangle_size=1.0
     return new_files
 
 
-def convert_scatangle_to_MATLAB(scatangle_file, fid=False, data_file=False):
+def convert_scatangle_to_MATLAB(
+    scatangle_file: str,
+    fid: str | bool = False,
+    data_file: str | bool = False,
+) -> None:
     """
     Converts scatangle file to MATLAB station distribution format
 
@@ -376,11 +396,17 @@ def convert_scatangle_to_MATLAB(scatangle_file, fid=False, data_file=False):
                                                          location_sample_multipliers=X[1], station_only=True)
 
 
-def parser_check(parser, options, defaults):
+def parser_check(
+    parser: argparse.ArgumentParser,
+    options: dict[str, Any],
+    defaults: dict[str, Any],
+) -> tuple[dict[str, Any], list[str]]:
     flags = []
     if options['bin_scatangle']:
         if not options['location_pdf_file_path']:
-            options['location_pdf_file_path'] = glob.glob(options['data_file']+os.path.sep+'*'+options['angle_extension'])
+            options['location_pdf_file_path'] = [
+                str(p) for p in Path(options['data_file']).glob(f"*{options['angle_extension']}")
+            ]
         if not isinstance(options['location_pdf_file_path'], list):
             options['location_pdf_file_path'] = [options['location_pdf_file_path']]
         flags = ['no_location_update']
@@ -397,34 +423,31 @@ PARSER_DEFAULTS = {
 PARSER_DEFAULT_TYPES = {'bin_scatangle': [bool], 'bin_size': [float]}
 
 
-def cmd_defaults():
+def cmd_defaults() -> tuple[dict[str, Any], dict[str, list[type]]]:
     return(PARSER_DEFAULTS, PARSER_DEFAULT_TYPES)
 
 
-def cmd_opts(group, argparser=_argparse, defaults=PARSER_DEFAULTS):
+def cmd_opts(
+    group: argparse._ActionsContainer,
+    argparser: bool = True,
+    defaults: dict[str, Any] = PARSER_DEFAULTS,
+) -> tuple[argparse._ActionsContainer, Any]:
     """
     Adds parser group for scatangle arguments
 
     Returns
-        group: argparse or optparse argument group
+        group: argparse argument group
 
     """
-    if argparser:
-        group.add_argument("--bin-scatangle", "--binscatangle", "--bin_scatangle",  action="store_true",
-                           default=defaults['bin_scatangle'], help="Bin the scatangle file to reduce the number of samples [default=False]. --bin-size Sets the bin size parameter .",
-                           dest="bin_scatangle")
-        group.add_argument("--bin-size", "--binsize", "--bin_size", type=float, default=defaults['bin_size'],
-                           help="Sets the scatangle bin size parameter [default={}]".format(defaults['bin_size']), dest="bin_scatangle_size")
-    else:
-        group.add_option("--bin-scatangle", "--binscatangle", "--bin_scatangle",  action="store_true",
-                         default=defaults['bin_scatangle'], help="Bin the scatangle file to reduce the number of samples [default=False]. --bin-size Sets the bin size parameter .",
-                         dest="bin_scatangle")
-        group.add_option("--bin-size", "--binsize", "--bin_size", type=float, default=defaults['bin_size'],
-                         help="Sets the scatangle bin size parameter [default={}]".format(defaults['bin_size']), dest="bin_scatangle_size")
+    group.add_argument("--bin-scatangle", "--binscatangle", "--bin_scatangle",  action="store_true",
+                       default=defaults['bin_scatangle'], help="Bin the scatangle file to reduce the number of samples [default=False]. --bin-size Sets the bin size parameter .",
+                       dest="bin_scatangle")
+    group.add_argument("--bin-size", "--binsize", "--bin_size", type=float, default=defaults['bin_size'],
+                       help=f"Sets the scatangle bin size parameter [default={defaults['bin_size']}]", dest="bin_scatangle_size")
     return group, parser_check
 
 
-def pre_inversion(**kwargs):
+def pre_inversion(**kwargs: Any) -> dict[str, Any]:
     if kwargs.get('bin_scatangle', False):
         try:
             kwargs['location_pdf_file_path'] = bin_scatangle_files(kwargs.get('location_pdf_file_path'), **kwargs)
@@ -434,5 +457,5 @@ def pre_inversion(**kwargs):
     return kwargs
 
 
-def location_pdf_parser(*args, **kwargs):
+def location_pdf_parser(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], list[float]]:
     return parse_scatangle(*args, **kwargs)

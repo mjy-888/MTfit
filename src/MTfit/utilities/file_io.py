@@ -13,17 +13,16 @@ Handles file input/output e.g. for the inversion results
 # Applications for commercial use should be made to Schlumberger or the University of Cambridge.
 
 
-import os
-import sys
-import traceback
-import struct
-from datetime import datetime
-import logging
+from __future__ import annotations
 
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import pickle
+import struct
+import traceback
+import logging
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -42,8 +41,8 @@ nlloc_polarity_dict = {'u': 1, '?': 0, 'd': -1, '+': 1, 'c': 1, '-': -1, '.': 0,
 #
 
 
-class MATLABOutputTask(object):
-
+@dataclass
+class MATLABOutputTask:
     """
     MATLAB format output task
 
@@ -52,24 +51,15 @@ class MATLABOutputTask(object):
     Initialisation
         Args
             fid: Filename for MATLAB output.
-            output: Dictionary of output to be saved to fid.
+            output_dict: Dictionary of output to be saved to fid.
+            version: Set MATLAB version (7.3 or 7) for hdf5storage or scipy storage, respectively
     """
 
-    def __init__(self, fid, output_dict, version='7.3'):
-        """
-        Initialisation of MATLABOutputTask
+    fid: str
+    output_dict: dict[str, Any]
+    version: str = '7.3'
 
-        Args
-            fid: Filename for MATLAB output.
-            output: Dictionary of output to be saved to fid.
-            version: Set MATLAB version (7.3 or 7) for hdf5storage or scipy storage, respectively
-
-        """
-        self.fid = fid
-        self.output_dict = output_dict
-        self.version = version
-
-    def __call__(self):
+    def __call__(self) -> int:
         """
         Runs the MATLABOutputTask and returns a result code.
 
@@ -86,26 +76,20 @@ class MATLABOutputTask(object):
         if self.version != '7.3':
             from scipy.io import savemat  # noqa F811
             self.version = '7'
-        logging.info('Saving to {} in MATLAB version {}'.format(self.fid, self.version))
+        logging.info(f'Saving to {self.fid} in MATLAB version {self.version}')
         # Try to save file
         try:
-            # Convert to/from unicode for different functions (hdf5 needs
-            # unicode) scipy needs non-unicode
-            if self.version == '7.3':
-                self.output_dict = convert_keys_to_unicode(self.output_dict)
-            else:
-                self.output_dict = convert_keys_from_unicode(self.output_dict)
             # Save data
             savemat(self.fid, self.output_dict)
-            logger.info('Saved to '+self.fid)
+            logger.info(f'Saved to {self.fid}')
             return 10
         except Exception:
             logger.exception('MATLAB Output Error')
             return 20
 
 
-class PickleOutputTask(object):
-
+@dataclass
+class PickleOutputTask:
     """
     Pickle format output task
 
@@ -114,22 +98,13 @@ class PickleOutputTask(object):
     Initialisation
         Args
             fid: Filename for output.
-            output: Dictionary of output to be saved to fid.
+            output_dict: Dictionary of output to be saved to fid.
     """
 
-    def __init__(self, fid, output_dict,):
-        """
-        Initialisation of PickleOutputTask
+    fid: str
+    output_dict: dict[str, Any]
 
-        Args
-            fid: Filename for MATLAB output.
-            output: Dictionary of output to be saved to fid.
-
-        """
-        self.fid = fid
-        self.output_dict = output_dict
-
-    def __call__(self):
+    def __call__(self) -> int:
         """
         Runs the PickleOutputTask and returns a result code.
 
@@ -137,19 +112,19 @@ class PickleOutputTask(object):
             resultCode: 10 if successful, 20 if an exception is thrown.
 
         """
-        logger.info('Saving to '+self.fid)
+        logger.info(f'Saving to {self.fid}')
         try:
             with open(self.fid, 'wb') as f:
                 pickle.dump(self.output_dict, f)
-            logger.info('Saved to '+self.fid)
+            logger.info(f'Saved to {self.fid}')
             return 10
         except Exception:
             logger.exception('Pickle Output Error')
             return 20
 
 
-class HypOutputTask(object):
-
+@dataclass
+class HypOutputTask:
     """
     NLLOC hyp format output task
 
@@ -159,26 +134,16 @@ class HypOutputTask(object):
         Args
             fid: Filename for output.
             output: Data to be saved to fid.
-            mt: Saving mt format.
+            binary: binary output file.
     """
 
-    def __init__(self, fid, output, binary=False):
-        """
-        Initialisation of HypOutputTask
+    fid: str
+    output: str | bytes
+    binary: bool = False
 
-        Args
-            fid: Filename for MATLAB output.
-            output: Data to be saved to fid.
-            binary:[False] binary output file.
-
+    def __call__(self) -> int:
         """
-        self.fid = fid
-        self.output = output
-        self.binary = binary
-
-    def __call__(self):
-        """
-        Runs the PickleOutputTask and returns a result code.
+        Runs the HypOutputTask and returns a result code.
 
         Returns
             resultCode: 10 if successful, 20 if an exception is thrown.
@@ -203,7 +168,7 @@ class HypOutputTask(object):
 #
 
 
-def parse_hyp(filename):
+def parse_hyp(filename: str) -> list[dict[str, Any]]:
     """
     Parse NonLinLoc hyp file
 
@@ -232,7 +197,7 @@ def parse_hyp(filename):
     return _parse_hyp_events(events_list)
 
 
-def _parse_hyp_events(events_list, polarity_error_multiplier=3.):
+def _parse_hyp_events(events_list: list, polarity_error_multiplier: float = 3.) -> list[dict[str, Any]]:
     """
     Parse events from NonLinLoc hyp file
 
@@ -296,14 +261,14 @@ def _parse_hyp_events(events_list, polarity_error_multiplier=3.):
         # End of event, make data into appropriate structures
         for key in event_dict.keys():
             if key != 'UID':
-                event_dict[key]['Stations']['TakeOffAngle'] = np.matrix(
+                event_dict[key]['Stations']['TakeOffAngle'] = np.array(
                     event_dict[key]['Stations']['TakeOffAngle'])
-                event_dict[key]['Stations']['Azimuth'] = np.matrix(
+                event_dict[key]['Stations']['Azimuth'] = np.array(
                     event_dict[key]['Stations']['Azimuth'])
-                event_dict[key]['Measured'] = np.matrix(
-                    event_dict[key]['Measured']).T
-                event_dict[key]['Error'] = np.matrix(
-                    event_dict[key]['Error']).T
+                event_dict[key]['Measured'] = np.array(
+                    event_dict[key]['Measured']).reshape(-1, 1)
+                event_dict[key]['Error'] = np.array(
+                    event_dict[key]['Error']).reshape(-1, 1)
         # Sort keys and append event dict to list
         event_dict['hyp_file'] = event
         if sorted(event_dict.keys()) != ['hyp_file', 'UID']:
@@ -312,7 +277,7 @@ def _parse_hyp_events(events_list, polarity_error_multiplier=3.):
     return event_dict_list
 
 
-def parse_csv(filename):
+def parse_csv(filename: str) -> list[dict[str, Any]]:
     """
     Parses CSV file to data dictionary
 
@@ -361,7 +326,7 @@ def parse_csv(filename):
     return _parse_csv_events(events_list)
 
 
-def _parse_csv_events(events_list):
+def _parse_csv_events(events_list: list) -> list[dict[str, Any]]:
     """
     Parses CSV event list to data dictionary
 
@@ -414,10 +379,10 @@ def _parse_csv_events(events_list):
                 else:
                     # End of event
                     if len(key_dict['Stations']['Name']):
-                        key_dict['Stations']['TakeOffAngle'] = np.matrix(key_dict['Stations']['TakeOffAngle'])
-                        key_dict['Stations']['Azimuth'] = np.matrix(key_dict['Stations']['Azimuth'])
-                        key_dict['Measured'] = np.matrix(key_dict['Measured'])
-                        key_dict['Error'] = np.matrix(key_dict['Error'])
+                        key_dict['Stations']['TakeOffAngle'] = np.array(key_dict['Stations']['TakeOffAngle'])
+                        key_dict['Stations']['Azimuth'] = np.array(key_dict['Stations']['Azimuth'])
+                        key_dict['Measured'] = np.array(key_dict['Measured'])
+                        key_dict['Error'] = np.array(key_dict['Error'])
                         event_dict[key] = key_dict
                     key = split_line[0].strip()
                     key_dict = {'Stations': {
@@ -445,10 +410,10 @@ def _parse_csv_events(events_list):
                 key_dict['Error'].append(error)
         # Sort output into correct structs
         if len(key_dict['Stations']['Name']):
-            key_dict['Stations']['TakeOffAngle'] = np.matrix(key_dict['Stations']['TakeOffAngle'])
-            key_dict['Stations']['Azimuth'] = np.matrix(key_dict['Stations']['Azimuth'])
-            key_dict['Measured'] = np.matrix(key_dict['Measured'])
-            key_dict['Error'] = np.matrix(key_dict['Error'])
+            key_dict['Stations']['TakeOffAngle'] = np.array(key_dict['Stations']['TakeOffAngle'])
+            key_dict['Stations']['Azimuth'] = np.array(key_dict['Stations']['Azimuth'])
+            key_dict['Measured'] = np.array(key_dict['Measured'])
+            key_dict['Error'] = np.array(key_dict['Error'])
             event_dict[key] = key_dict
         event_dict_list.append(event_dict)
     return event_dict_list
@@ -458,7 +423,7 @@ def _parse_csv_events(events_list):
 #
 
 
-def csv2inv(filename):
+def csv2inv(filename: str) -> None:
     """
     Converts CSV file to inv file
 
@@ -485,7 +450,7 @@ def csv2inv(filename):
 
     """
     event_dict_list = parse_csv(filename)
-    output_name = os.path.splitext(filename)[0]+'.inv'
+    output_name = Path(filename).stem + '.inv'
     PickleOutputTask(output_name, event_dict_list)()
 
 #
@@ -493,7 +458,7 @@ def csv2inv(filename):
 #
 
 
-def _convert_mt_space_to_struct(output_data, i=False):
+def _convert_mt_space_to_struct(output_data: dict, i: int | bool = False) -> tuple[bytes, bytes]:
     """
     Coverts mt space to binary struct
 
@@ -596,10 +561,7 @@ def _convert_mt_space_to_struct(output_data, i=False):
             # Add converted data
             binary_output += struct.pack('13d', g[i], d[i], k[i], h[i], s[i], u[i], v[i], s1[i], d1[i], r1[i], s2[i], d2[i], r2[i])
     # Handle scale_factors
-    if sys.version_info.major > 2:
-        sf_output = b''
-    else:
-        sf_output = ''
+    sf_output = b''
     if 'scale_factors' in output_data:
         n_events = output_data['scale_factors']['mu'].shape[1]
         sf_output = struct.pack('QQQ', output_data['total_number_samples'], len(output_data['scale_factors']), n_events)
@@ -618,7 +580,9 @@ def _convert_mt_space_to_struct(output_data, i=False):
     return binary_output, sf_output
 
 
-def _generate_hyp_output_data(event_data, inversion_options=False, output_data=False, maxMT=np.matrix([[0], [0], [0], [0], [0], [0]])):
+def _generate_hyp_output_data(event_data: dict, inversion_options: list | bool = False,
+                              output_data: dict | bool = False,
+                              maxMT: np.ndarray = np.array([[0], [0], [0], [0], [0], [0]])) -> list[str]:
     """
     Generates the hyp output text data for the .hyp file
 
@@ -628,7 +592,7 @@ def _generate_hyp_output_data(event_data, inversion_options=False, output_data=F
         event_data: Event data dictionary.
         inversion_options:[False] Inversion options list.
         output_data:[False] Output data results
-        maxMT:[np.matrix([[0],[0],[0],[0],[0],[0]])] Maximum moment tensor solution.
+        maxMT:[np.array([[0],[0],[0],[0],[0],[0]])] Maximum moment tensor solution.
 
     Returns
         list of event text outputs
@@ -682,8 +646,8 @@ def _generate_hyp_output_data(event_data, inversion_options=False, output_data=F
                 polarity = nlloc_polarity_inv_dict[phase[0]][
                     event_data[phase+'Polarity']['Measured'][i, 0]]
                 lines.append([station, '?', '?', '?', phase.upper(), polarity, '?', '?', '?', '?', '?', '?', '?', '?', '>', '?', '?', '?', '?', '?', '?', '?', '?',
-                              '{:5.1f}'.format(event_data[phase+'Polarity']['Stations']['Azimuth'][i, 0]).lstrip(),
-                              '{:5.1f}'.format(event_data[phase+'Polarity']['Stations']['TakeOffAngle'][i, 0]).lstrip(), '?', '?'])
+                              f'{event_data[phase+"Polarity"]["Stations"]["Azimuth"][i, 0]:5.1f}'.lstrip(),
+                              f'{event_data[phase+"Polarity"]["Stations"]["TakeOffAngle"][i, 0]:5.1f}'.lstrip(), '?', '?'])
         lines.append(['END_PHASE'])
         lines.append(['END_NLLOC'])
     phase_line_index = lines.index(['PHASE', 'ID', 'Ins', 'Cmp', 'On', 'Pha', 'FM', 'Date', 'HrMn', 'Sec', 'Err', 'ErrMag', 'Coda',
@@ -702,12 +666,16 @@ def _generate_hyp_output_data(event_data, inversion_options=False, output_data=F
         pass
     # Make source line
     if dc:
-        source_line = ["FOCALMECH", geog_line[9], geog_line[11], geog_line[13], "Mech", str(float(maxMT_tape[2]*180/np.pi)),
-                       str(float(np.arccos(maxMT_tape[3])*180/np.pi)), str(float(maxMT_tape[4]*180/np.pi)), "mf", "?", "nObs", "?"]
+        source_line = ["FOCALMECH", geog_line[9], geog_line[11], geog_line[13], "Mech",
+                       str((maxMT_tape[2]*180/np.pi).item()),
+                       str((np.arccos(maxMT_tape[3])*180/np.pi).item()),
+                       str((maxMT_tape[4]*180/np.pi).item()), "mf", "?", "nObs", "?"]
     else:
-        source_line = ["MOMENTTENSOR", geog_line[9], geog_line[11], geog_line[13], "MTNN", str(float(maxMT[0])), "EE", str(float(maxMT[1])),
-                       "DD", str(float(maxMT[2])), "NE", str(float(maxMT[3]/np.sqrt(2))), "ND", str(float(maxMT[4]/np.sqrt(2))), "ED",
-                       str(float(maxMT[5]/np.sqrt(2))), "mf", "?", "nObs", "?"]
+        source_line = ["MOMENTTENSOR", geog_line[9], geog_line[11], geog_line[13],
+                       "MTNN", str(maxMT[0].item()), "EE", str(maxMT[1].item()),
+                       "DD", str(maxMT[2].item()), "NE", str((maxMT[3]/np.sqrt(2)).item()),
+                       "ND", str((maxMT[4]/np.sqrt(2)).item()), "ED",
+                       str((maxMT[5]/np.sqrt(2)).item()), "mf", "?", "nObs", "?"]
     # Insert before phases start
     lines.insert(phase_line_index, source_line)
     mf = 0
@@ -737,9 +705,11 @@ def _generate_hyp_output_data(event_data, inversion_options=False, output_data=F
 #
 
 
-def full_pdf_output_dicts(event_data, inversion_options=False, output_data=False, location_samples=False,
-                          location_sample_multipliers=False, multiple_events=False, _diagnostic_output=False,
-                          normalise=True, *args, **kwargs):
+def full_pdf_output_dicts(event_data: dict | list, inversion_options: list | bool = False,
+                          output_data: dict | bool = False, location_samples: list | bool = False,
+                          location_sample_multipliers: list | bool = False, multiple_events: bool = False,
+                          _diagnostic_output: bool = False, normalise: bool = True,
+                          *args, **kwargs) -> list:
     """
     Create output dictionaries for full_pdf format
 
@@ -797,27 +767,27 @@ def full_pdf_output_dicts(event_data, inversion_options=False, output_data=False
                         observations_dict['Measured'][1, :].T).flatten()
                 measured = positive
                 measured[positive < negative] = -negative[positive < negative]
-                measured = np.matrix(measured).T
+                measured = np.array(measured).reshape(-1, 1)
             else:
                 observations_dict = ev_data['PPolarity']
                 if len(observations_dict['Measured'].shape) > 1 and observations_dict['Measured'].shape[0] > observations_dict['Measured'].shape[1]:
-                    measured = np.matrix(observations_dict['Measured'])
+                    measured = np.array(observations_dict['Measured'])
                 else:
-                    measured = np.matrix(observations_dict['Measured']).T
+                    measured = np.array(observations_dict['Measured']).reshape(-1, 1)
             number_stations = len(observations_dict['Stations']['Name'])
             # Make stations object
-            stations = np.matrix(np.zeros((number_stations, 4), dtype=np.object))
-            stations[:, 0] = np.matrix(observations_dict['Stations']['Name']).T
+            stations = np.zeros((number_stations, 4), dtype=object)
+            stations[:, 0] = np.array(observations_dict['Stations']['Name'])
             # Check orientations of angles and observations
             if len(observations_dict['Stations']['Azimuth'].shape) > 1 and observations_dict['Stations']['Azimuth'].shape[0] > observations_dict['Stations']['Azimuth'].shape[1]:
-                stations[:, 1] = np.matrix(observations_dict['Stations']['Azimuth'])
+                stations[:, 1] = np.array(observations_dict['Stations']['Azimuth']).flatten()
             else:
-                stations[:, 1] = np.matrix(observations_dict['Stations']['Azimuth']).T
+                stations[:, 1] = np.array(observations_dict['Stations']['Azimuth']).flatten()
             if len(observations_dict['Stations']['TakeOffAngle'].shape) > 1 and observations_dict['Stations']['TakeOffAngle'].shape[0] > observations_dict['Stations']['TakeOffAngle'].shape[1]:
-                stations[:, 2] = np.matrix(observations_dict['Stations']['TakeOffAngle'])
+                stations[:, 2] = np.array(observations_dict['Stations']['TakeOffAngle']).flatten()
             else:
-                stations[:, 2] = np.matrix(observations_dict['Stations']['TakeOffAngle']).T
-            stations[:, 3] = measured
+                stations[:, 2] = np.array(observations_dict['Stations']['TakeOffAngle']).flatten()
+            stations[:, 3] = measured.flatten()
             # Append to array
             stations = np.array(stations)
         # Otherwise just get set of stations in data (loop over observations
@@ -831,23 +801,25 @@ def full_pdf_output_dicts(event_data, inversion_options=False, output_data=False
             else:
                 observations_dicts = [
                     val for key, val in ev_data.items() if key not in ['hyp_file', 'UID']]
-            stations = np.matrix(np.zeros((0, 4), dtype=np.object))
+            stations = np.zeros((0, 4), dtype=object)
             for j, observations_dict in enumerate(observations_dicts):
                 try:
                     number_stations = len(observations_dict['Stations']['Name'])
                 except Exception:
                     continue
-                _stations = np.matrix(np.zeros((number_stations, 4), dtype=np.object))
-                _stations[:, 0] = np.matrix(observations_dict['Stations']['Name']).T
-                observations_dict['Stations']['Azimuth'] = np.matrix(observations_dict['Stations']['Azimuth'])
-                if observations_dict['Stations']['Azimuth'].shape[0] < observations_dict['Stations']['Azimuth'].shape[1]:
-                    observations_dict['Stations']['Azimuth'] = observations_dict['Stations']['Azimuth'].T
-                observations_dict['Stations']['TakeOffAngle'] = np.matrix(observations_dict['Stations']['TakeOffAngle'])
-                if observations_dict['Stations']['TakeOffAngle'].shape[0] < observations_dict['Stations']['TakeOffAngle'].shape[1]:
-                    observations_dict['Stations']['TakeOffAngle'] = observations_dict['Stations']['TakeOffAngle'].T
-                _stations[:, 1] = np.matrix(observations_dict['Stations']['Azimuth'])
-                _stations[:, 2] = np.matrix(observations_dict['Stations']['TakeOffAngle'])
-                _stations[:, 3] = np.zeros((len(observations_dict['Stations']['Name']), 1))
+                _stations = np.zeros((number_stations, 4), dtype=object)
+                _stations[:, 0] = np.array(observations_dict['Stations']['Name'])
+                az = np.array(observations_dict['Stations']['Azimuth'])
+                if az.shape[0] < az.shape[1]:
+                    az = az.T
+                observations_dict['Stations']['Azimuth'] = az
+                toa = np.array(observations_dict['Stations']['TakeOffAngle'])
+                if toa.shape[0] < toa.shape[1]:
+                    toa = toa.T
+                observations_dict['Stations']['TakeOffAngle'] = toa
+                _stations[:, 1] = np.array(observations_dict['Stations']['Azimuth']).flatten()
+                _stations[:, 2] = np.array(observations_dict['Stations']['TakeOffAngle']).flatten()
+                _stations[:, 3] = np.zeros(len(observations_dict['Stations']['Name']))
                 try:
                     stations = np.append(stations, _stations, 0)
                 except Exception:
@@ -916,7 +888,11 @@ def full_pdf_output_dicts(event_data, inversion_options=False, output_data=False
     return [mdict, sdict]
 
 
-def hyp_output_dicts(event_data, inversion_options=False, output_data=False, location_samples=False, location_sample_multipliers=False, multiple_events=False, _diagnostic_output=False, normalise=True, *args, **kwargs):
+def hyp_output_dicts(event_data: dict | list, inversion_options: list | bool = False,
+                     output_data: dict | bool = False, location_samples: list | bool = False,
+                     location_sample_multipliers: list | bool = False, multiple_events: bool = False,
+                     _diagnostic_output: bool = False, normalise: bool = True,
+                     *args, **kwargs) -> tuple[str, bytes, bytes]:
     """
     Create output dictionaries for hyp format
 
@@ -952,7 +928,7 @@ def hyp_output_dicts(event_data, inversion_options=False, output_data=False, loc
                     if maxMT.shape[1] > 1:
                         maxMT = maxMT[:, 0]
                 except Exception:
-                    maxMT = np.matrix([[0], [0], [0], [0], [0], [0]])
+                    maxMT = np.array([[0], [0], [0], [0], [0], [0]])
             # Get hyp output data
             output_contents.append('\n'.join(_generate_hyp_output_data(ev_data, inversion_options, output_data, maxMT))+'\n\n')
             # Get mt and scale_factor outputs
@@ -967,18 +943,15 @@ def hyp_output_dicts(event_data, inversion_options=False, output_data=False, loc
         # Need to convert this to a string if using python 3
         output_mt = [binary]
         output_sf = [sf]
-    if sys.version_info.major > 2:
-        binary_spacer = b''
-    else:
-        binary_spacer = ''
-    return '\n'.join(output_contents), binary_spacer.join(output_mt), binary_spacer.join(output_sf)
+    return '\n'.join(output_contents), b''.join(output_mt), b''.join(output_sf)
 
 #
 # Output file formats
 #
 
 
-def MATLAB_output(output_data, fid='MTfitOutput.mat', pool=False, version='7.3', *args, **kwargs):
+def MATLAB_output(output_data: dict | list, fid: str = 'MTfitOutput.mat',
+                  pool: Any = False, version: str = '7.3', *args, **kwargs) -> tuple[str, str]:
     """
     Outputs event results to fid as .mat
 
@@ -1013,7 +986,7 @@ def MATLAB_output(output_data, fid='MTfitOutput.mat', pool=False, version='7.3',
     except ImportError:
         from hdf5storage import savemat as st_savemat  # noqa F401
         st_ver = '7.3'
-    output_string = 'Outputting data in MATLAB format --version={}\n'.format(version)
+    output_string = f'Outputting data in MATLAB format --version={version}\n'
     # Get sdict and mdict
     sdict = False
     if isinstance(output_data, list):
@@ -1022,42 +995,32 @@ def MATLAB_output(output_data, fid='MTfitOutput.mat', pool=False, version='7.3',
             sdict = output_data[1]
     else:
         mdict = output_data
-    # Convert dict keys to or from unicode
-    if version == '7.3':
-        mdict = convert_keys_to_unicode(mdict)
-    else:
-        mdict = convert_keys_from_unicode(mdict)
-    if st_ver == '7.3' and sdict:
-        sdict = convert_keys_to_unicode(sdict)
-    else:
-        sdict = convert_keys_from_unicode(sdict)
     # Run output tasks (using pool or otherwise)
-    if pool and (sys.version_info[:2] >= (2, 7, 4) or ('Events' in mdict.keys() and np.sum([np.prod(mdict['Events'][key].shape) for key in mdict['Events'] if 'MTSpace' in key])*8*8 < 2**30)):
-        # Check for cPickle bug #13555 http://bugs.python.org/issue13555 which seems linked to multiprocessing issue #17560 http://bugs.python.org/issue17560
-        # cannot pickle files longer than 2**31 (32 bit encoding used for
-        # cPickle length)
-        output_string += 'Using jobPool to save file to {}\n'.format(fid)
+    fid_path = Path(fid)
+    if pool and ('Events' in mdict.keys() and np.sum([np.prod(mdict['Events'][key].shape) for key in mdict['Events'] if 'MTSpace' in key])*8*8 < 2**30):
+        output_string += f'Using jobPool to save file to {fid}\n'
         if mdict:
-            pool.custom_task(MATLABOutputTask, os.path.splitext(fid)[0]+'.mat', mdict, version)
+            pool.custom_task(MATLABOutputTask, fid_path.with_suffix('.mat').as_posix(), mdict, version)
         if sdict:
-            pool.custom_task(MATLABOutputTask, os.path.splitext(fid)[0]+'StationDistribution.mat', sdict, st_ver)
+            pool.custom_task(MATLABOutputTask, str(fid_path.with_suffix('')) + 'StationDistribution.mat', sdict, st_ver)
     else:
         if mdict:
-            MATLABOutputTask(os.path.splitext(fid)[0]+'.mat', mdict, version)()
+            MATLABOutputTask(fid_path.with_suffix('.mat').as_posix(), mdict, version)()
         if sdict:
             try:
-                MATLABOutputTask(os.path.splitext(fid)[0]+'StationDistribution.mat', sdict, st_ver)()
+                MATLABOutputTask(str(fid_path.with_suffix('')) + 'StationDistribution.mat', sdict, st_ver)()
             except Exception:
                 traceback.print_exc()
-        output_string += 'Saved to {}\n'.format(fid)
+        output_string += f'Saved to {fid}\n'
     return output_string, fid
 
 
-def pickle_output(output_data, fid='MTfitOutput.out', pool=False, *args, **kwargs):
+def pickle_output(output_data: dict | list, fid: str = 'MTfitOutput.out',
+                  pool: Any = False, *args, **kwargs) -> tuple[str, str]:
     """
     Outputs event results to fid as .out (default)
 
-    cPickle output of MATLAB format output.
+    Pickle output of MATLAB format output.
 
     Saves output dictionary to fid
 
@@ -1070,8 +1033,9 @@ def pickle_output(output_data, fid='MTfitOutput.out', pool=False, *args, **kwarg
         output_string,fid: String of information for stdout, filename of output file.
     """
     # Set file ending
-    if os.path.splitext(fid)[1] == '.mat':
-        fid = os.path.splitext(fid)[0]+'.out'
+    fid_path = Path(fid)
+    if fid_path.suffix == '.mat':
+        fid = str(fid_path.with_suffix('.out'))
     sdict = False
     if isinstance(output_data, list):
         mdict = output_data[0]
@@ -1080,24 +1044,22 @@ def pickle_output(output_data, fid='MTfitOutput.out', pool=False, *args, **kwarg
     else:
         mdict = output_data
     output_string = 'Outputting data in python format\n'
-    # Output structure to cPickle.
-    if pool and (sys.version_info[:2] >= (2, 7, 4) or ('Events' in mdict.keys() and np.sum([np.prod(mdict['Events'][key].shape) for key in mdict['Events'] if 'MTSpace' in key])*8*8 < 2**30)):
-        # Check for cPickle bug #13555 http://bugs.python.org/issue13555 which seems linked to multiprocessing issue #17560 http://bugs.python.org/issue17560
-        # cannot pickle files longer than 2**31 (32 bit encoding used for
-        # cPickle length)
-        output_string += 'Using jobPool to save file to '+fid+'\n'
+    # Output structure to pickle.
+    if pool and ('Events' in mdict.keys() and np.sum([np.prod(mdict['Events'][key].shape) for key in mdict['Events'] if 'MTSpace' in key])*8*8 < 2**30):
+        output_string += f'Using jobPool to save file to {fid}\n'
         pool.custom_task(PickleOutputTask, fid, mdict)
         if sdict:
-            pool.custom_task(PickleOutputTask, os.path.splitext(fid)[0]+'StationDistribution'+os.path.splitext(fid)[1], sdict)
+            pool.custom_task(PickleOutputTask, str(fid_path.with_suffix('')) + 'StationDistribution' + fid_path.suffix, sdict)
     else:
         PickleOutputTask(fid, mdict)()
         if sdict:
-            PickleOutputTask(os.path.splitext(fid)[0]+'StationDistribution'+os.path.splitext(fid)[1], sdict)()
-        output_string += 'Saved to '+fid+'\n'
+            PickleOutputTask(str(fid_path.with_suffix('')) + 'StationDistribution' + fid_path.suffix, sdict)()
+        output_string += f'Saved to {fid}\n'
     return output_string, fid
 
 
-def hyp_output(output_data, fid='MTfitOutput.hyp', pool=False, *args, **kwargs):
+def hyp_output(output_data: dict | list, fid: str = 'MTfitOutput.hyp',
+               pool: Any = False, *args, **kwargs) -> tuple[str, str]:
     """
     Outputs event results to fid as .hyp (default)
 
@@ -1114,8 +1076,9 @@ def hyp_output(output_data, fid='MTfitOutput.hyp', pool=False, *args, **kwargs):
         output_string,fid: String of information for stdout, filename of output file.
     """
     # Set file ending
-    if os.path.splitext(fid)[1] == '.mat':
-        fid = os.path.splitext(fid)[0]+'.hyp'
+    fid_path = Path(fid)
+    if fid_path.suffix == '.mat':
+        fid = str(fid_path.with_suffix('.hyp'))
     mt_data = False
     sf_data = False
     # Get data
@@ -1130,15 +1093,12 @@ def hyp_output(output_data, fid='MTfitOutput.hyp', pool=False, *args, **kwargs):
     output_string = 'Outputting data in NLLOC hyp format\n'
     # Output using pool or otherwise
     if pool:
-        # Check for cPickle bug #13555 http://bugs.python.org/issue13555 which seems linked to multiprocessing issue #17560 http://bugs.python.org/issue17560
-        # cannot pickle files longer than 2**31 (32 bit encoding used for
-        # cPickle length)
-        output_string += 'Using jobPool to save file to '+fid+'\n'
+        output_string += f'Using jobPool to save file to {fid}\n'
         pool.custom_task(HypOutputTask, fid, output, False)
-        if mt_data and (sys.version_info[:2] >= (2, 7, 4) or len(mt_data)*128 < 2**30):
+        if mt_data:
             pool.custom_task(
                 HypOutputTask, fid.replace('.hyp', '.mt'), mt_data, True)
-        if sf_data and (sys.version_info[:2] >= (2, 7, 4) or len(sf_data)*128 < 2**30):
+        if sf_data:
             pool.custom_task(
                 HypOutputTask, fid.replace('.hyp', '.sf'), sf_data, True)
 
@@ -1148,7 +1108,7 @@ def hyp_output(output_data, fid='MTfitOutput.hyp', pool=False, *args, **kwargs):
             HypOutputTask(fid.replace('.hyp', '.mt'), mt_data, True)()
         if sf_data and len(sf_data):
             HypOutputTask(fid.replace('.hyp', '.sf'), sf_data, True)()
-        output_string += 'Saved to '+fid+'\n'
+        output_string += f'Saved to {fid}\n'
     return output_string, fid
 
 #
@@ -1156,7 +1116,7 @@ def hyp_output(output_data, fid='MTfitOutput.hyp', pool=False, *args, **kwargs):
 #
 
 
-def read_binary_output(filename, version=2):
+def read_binary_output(filename: str, version: int = 2) -> list[dict[str, Any]]:
     """
     Reads binary output and converts to data dict.
 
@@ -1194,9 +1154,9 @@ def read_binary_output(filename, version=2):
             else:
                 dkl = np.nan
             # Generate blank arrays
-            MTSpace = np.matrix(np.zeros((6, number_mt_samples)))
-            Probability = np.matrix(np.zeros((1, number_mt_samples)))
-            Ln_P = np.matrix(np.zeros((1, number_mt_samples)))
+            MTSpace = np.zeros((6, number_mt_samples))
+            Probability = np.zeros((1, number_mt_samples))
+            Ln_P = np.zeros((1, number_mt_samples))
             if converted:
                 g = np.zeros((number_mt_samples,))
                 d = np.zeros((number_mt_samples,))
@@ -1234,7 +1194,7 @@ def read_binary_output(filename, version=2):
     return output_data
 
 
-def read_sf_output(filename):
+def read_sf_output(filename: str) -> list[dict[str, Any]]:
     """
     Reads binary scale factor output and converts to data dict.
 
@@ -1257,10 +1217,10 @@ def read_sf_output(filename):
             # Read total number and number of saved samples and number of events
             total_number_samples, number_samples, n_events = struct.unpack('QQQ', f.read(24))
             # Generate blank arrays
-            Mu = np.matrix(np.zeros((int(n_events*(n_events-1)/2.), number_samples)))
-            S = np.matrix(np.zeros((int(n_events*(n_events-1)/2.), number_samples)))
-            Ln_P = np.matrix(np.zeros((1, number_samples)))
-            Probability = np.matrix(np.zeros((1, number_samples)))
+            Mu = np.zeros((int(n_events*(n_events-1)/2.), number_samples))
+            S = np.zeros((int(n_events*(n_events-1)/2.), number_samples))
+            Ln_P = np.zeros((1, number_samples))
+            Probability = np.zeros((1, number_samples))
             # Loop over samples
             for i in range(number_samples):
                 Probability[0, i], Ln_P[0, i] = struct.unpack('2d', f.read(16))
@@ -1275,7 +1235,7 @@ def read_sf_output(filename):
     return output_data
 
 
-def read_matlab_output(filename, station_distribution=False):
+def read_matlab_output(filename: str, station_distribution: bool = False) -> tuple[dict, dict]:
     """
     Reads matlab output and converts to data dict.
 
@@ -1298,9 +1258,9 @@ def read_matlab_output(filename, station_distribution=False):
             data = loadmat(filename)
         except Exception:
             if hdf5:
-                raise IOError('Input file '+filename+" can't be read as old or new style (hdf5) format")
+                raise IOError(f"Input file {filename} can't be read as old or new style (hdf5) format")
             else:
-                raise IOError('Input file '+filename+" can't be read - it could be a new style (hdf5) format, which requires the hdf5storage module to be installed.")
+                raise IOError(f"Input file {filename} can't be read - it could be a new style (hdf5) format, which requires the hdf5storage module to be installed.")
     if station_distribution:
         return _parse_matlab_station_distribution(data)
     return _parse_matlab_output(data)
@@ -1373,8 +1333,7 @@ def _parse_matlab_station_distribution(station_distribution_data):
             distribution.append(st_sample)
         station_distribution['distribution'] = distribution
     except Exception:
-        station_distribution = convert_keys_from_unicode(
-            station_distribution_data['StationDistribution'])
+        station_distribution = station_distribution_data['StationDistribution']
     return station_distribution
 
 
@@ -1433,13 +1392,13 @@ def _parse_matlab_output(data):
             else:
                 events[key] = data['Events'][key][0, 0]
     except Exception:
-        events = convert_keys_from_unicode(data['Events'])
+        events = data['Events']
     if events['Probability'].max() == 0:
         events['Probability'] = np.exp(events['ln_pdf']-events['ln_pdf'].max())
     return (events, stations)
 
 
-def read_pickle_output(filename, station_distribution=False):
+def read_pickle_output(filename: str, station_distribution: bool = False) -> tuple[dict, dict]:
     """
     Reads pickle output and returns the data
 
@@ -1470,7 +1429,7 @@ def read_pickle_output(filename, station_distribution=False):
     return (events, stations)
 
 
-def read_hyp_output(filename):
+def read_hyp_output(filename: str) -> tuple[list, dict]:
     """
     Reads hyp output and returns the data
 
@@ -1480,11 +1439,12 @@ def read_hyp_output(filename):
     Returns
         (dict,dict): tuple of (events,data) dictionaries of output data.
     """
+    fpath = Path(filename)
     try:
-        hyp_data = parse_hyp(os.path.splitext(filename)[0]+'.hyp')
+        hyp_data = parse_hyp(str(fpath.with_suffix('.hyp')))
     except Exception:
         hyp_data = {}
-    events = read_binary_output(os.path.splitext(filename)[0]+'.mt')
+    events = read_binary_output(str(fpath.with_suffix('.mt')))
     key_map = {'takeoffangle': 'takeoff_angle'}
     try:
         stations = hyp_data['PPolarity']['Stations']
@@ -1499,7 +1459,8 @@ def read_hyp_output(filename):
     return events, stations
 
 
-def read_scatangle_output(filename, number_location_samples=0, bin_size=0, **kwargs):
+def read_scatangle_output(filename: str, number_location_samples: int = 0,
+                          bin_size: float = 0, **kwargs) -> dict:
     """
     Reads scatangle file for plotting
 
@@ -1525,108 +1486,20 @@ def read_scatangle_output(filename, number_location_samples=0, bin_size=0, **kwa
         station_distribution['distribution'].append({'azimuth': st['Azimuth'], 'takeoff_angle': st['TakeOffAngle'], 'names': st['Name']})
     return station_distribution
 
-# Dictionary conversion functions for file_io
 
-
-def convert_keys_to_unicode(dictionary,):
-    """
-    Converts dictionary keys to unicode
-
-    Required for MATLAB -v7.3 format output. This recursively changes strings in a dictionary to unicode.
-
-    Args
-        dictionary: Input dictionary.
-    Returns
-        dictionary: Converted dictionary.
-    """
-    if sys.version_info.major > 2:
-        return dictionary
-    if isinstance(dictionary, list):
-        new_list = []
-        for item in dictionary:
-            new_list.append(convert_keys_to_unicode(item))
-        return new_list
-    elif isinstance(dictionary, dict):
-        new_dictionary = {}
-        for key, value in dictionary.items():
-            if isinstance(value, list):
-                new_value = []
-                for item in value:
-                    new_value.append(convert_keys_to_unicode(item))
-                value = new_value
-            if isinstance(value, dict):
-                new_dictionary[key.decode('unicode-escape')] = convert_keys_to_unicode(value)
-            else:
-                new_dictionary[key.decode('unicode-escape')] = convert_keys_to_unicode(value)
-        return new_dictionary
-    return dictionary
-
-
-def convert_keys_from_unicode(dictionary,):
-    """
-    Converts dictionary keys from  unicode
-
-    Required for MATLAB -v7 format output. This recursively changes strings in a dictionary from unicode.
-
-    Args
-        dictionary: Input dictionary.
-    Returns
-        dictionary: Converted dictionary.
-    """
-    if sys.version_info.major > 2:
-        return dictionary
-    if isinstance(dictionary, list):
-        new_list = []
-        for item in dictionary:
-            new_list.append(convert_keys_from_unicode(item))
-        return new_list
-    elif isinstance(dictionary, dict):
-        new_dictionary = {}
-        for key, value in dictionary.items():
-            if isinstance(value, list):
-                new_value = []
-                for item in value:
-                    new_value.append(convert_keys_from_unicode(item))
-                value = new_value
-            if isinstance(value, dict):
-                new_dictionary[key.encode('utf-8')] = convert_keys_from_unicode(value)
-            else:
-                new_dictionary[key.encode('utf-8')] = convert_keys_from_unicode(value)
-        return new_dictionary
-    return dictionary
-
-
-def unique_columns(data, counts=False, index=False):
+def unique_columns(data: np.ndarray, counts: bool = False, index: bool = False) -> np.ndarray | tuple:
     """Get unique columns in an array (used for max probability MT)"""
     output = []
-    if float('.'.join(np.__version__.split('.')[:2])) >= 1.13:
-        unique_results = np.unique(data, return_index=index, return_counts=counts, axis=1)
-        if isinstance(unique_results, tuple):
-            unique = unique_results[0]
-        else:
-            unique = unique_results
-        if index:
-            idx = unique_results[1]
-        if counts:
-            unique_counts = unique_results[-1]
+    unique_results = np.unique(data, return_index=index, return_counts=counts, axis=1)
+    if isinstance(unique_results, tuple):
+        unique = unique_results[0]
     else:
-        data = np.array(data).T
-        ind = np.lexsort(data.T)
-        data = np.squeeze(data)
-        if len(ind.shape) > 1:
-            ind = np.squeeze(ind)
-        unique = data[ind[np.concatenate(([True], np.any(data[ind[1:]] != data[ind[:-1]], axis=1)))]].T
-        if counts:
-            indx = np.nonzero(np.concatenate(([True], np.any(data[ind[1:]] != data[ind[:-1]], axis=1))))[0]
-            unique_counts = []
-            for u, j in enumerate(indx):
-                try:
-                    unique_counts.append(indx[u+1]-j)
-                except Exception:
-                    unique_counts.append(1)
-        if index:
-            idx = ind[np.concatenate(([True], np.any(data[ind[1:]] != data[ind[:-1]], axis=1)))]
-    output.append(np.matrix(unique))
+        unique = unique_results
+    if index:
+        idx = unique_results[1]
+    if counts:
+        unique_counts = unique_results[-1]
+    output.append(np.array(unique))
     if counts:
         output.append(np.array(unique_counts))
     if index:

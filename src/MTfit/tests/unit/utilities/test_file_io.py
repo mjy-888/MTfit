@@ -7,14 +7,8 @@ Tests for src/utils/file_io.py
 
 import os
 import glob
-import sys
+import pickle
 import tempfile
-import shutil
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
 
 import numpy as np
 
@@ -33,20 +27,14 @@ from MTfit.utilities.file_io import MATLAB_output
 from MTfit.utilities.file_io import read_matlab_output
 from MTfit.utilities.file_io import read_scatangle_output
 from MTfit.utilities.file_io import unique_columns
-from MTfit.utilities.file_io import convert_keys_to_unicode
-from MTfit.utilities.file_io import convert_keys_from_unicode
 
 
 class IOTestCase(TestCase):
 
     def setUp(self):
         self.cwd = os.getcwd()
-        if sys.version_info >= (3, 0):
-            self.tempdir = tempfile.TemporaryDirectory()
-            os.chdir(self.tempdir.name)
-        else:
-            self.tempdir = tempfile.mkdtemp()
-            os.chdir(self.tempdir)
+        self.tempdir = tempfile.TemporaryDirectory()
+        os.chdir(self.tempdir.name)
         self.existing_csv_files = glob.glob('*.csv')
         self.existing_hyp_files = glob.glob('*.hyp')
         self.existing_out_files = glob.glob('*.out')
@@ -85,13 +73,7 @@ class IOTestCase(TestCase):
                 except Exception:
                     print('Cannot remove ', fname)
         os.chdir(self.cwd)
-        if sys.version_info >= (3, 0):
-            self.tempdir.cleanup()
-        else:
-            try:
-                shutil.rmtree(self.tempdir)
-            except:
-                pass
+        self.tempdir.cleanup()
 
     def station_angles(self):
         out = "504.7\n"
@@ -184,7 +166,7 @@ TRANSFORM  LAMBERT RefEllipsoid Clarke-1880  LatOrig 0.039707  LongOrig 0.039441
 QML_OriginQuality  assocPhCt 37  usedPhCt 37  assocStaCt -1  usedStaCt 22  depthPhCt -1  stdErr 0.00958958  azGap 36.756  secAzGap 58.4897  gtLevel -  minDist 0.264995 maxDist 5.47344 medDist 3.25213
 QML_OriginUncertainty  horUnc -1  minHorUnc 0.138862  maxHorUnc 0.153692  azMaxHorUnc 9.99915
 FOCALMECH  Hyp  0.0399196 0.0397218 3.32031 Mech  0 0 0 mf  0 nObs 0
-PHASE ID Ins Cmp On Pha  FM Date     HrMn   Sec     Err  ErrMag    Coda      Amp       Per  >   TTpred    Res       Weight    StaLoc(X  Y         Z)        SDist    SAzim  RAz  RDip RQual    Tcorr 
+PHASE ID Ins Cmp On Pha  FM Date     HrMn   Sec     Err  ErrMag    Coda      Amp       Per  >   TTpred    Res       Weight    StaLoc(X  Y         Z)        SDist    SAzim  RAz  RDip RQual    Tcorr
 S0325  ?    ?    ? P      U 20150126 2223        25 GAU      0.01        -1        -1        -1 >    0.7224    0.0004    1.2751   -0.1600   -0.1600    0.0000    0.2650 226.19 225.8 172.6  9     0.0000
 S0273  ?    ?    ? P      U 20150126 2223     25.02 GAU      0.01        -1        -1        -1 >    0.7454   -0.0024    1.2649   -0.1600   -0.7999    0.0000    0.8453 193.07 196.4 161.8  9     0.0000
 S0429  ?    ?    ? P      U 20150126 2223     25.04 GAU      0.02        -1        -1        -1 >    0.7623    0.0009    1.2266   -0.1600    1.1199    0.0000    1.1130 350.11 347.0 157.5  9     0.0000
@@ -296,8 +278,8 @@ END_NLLOC
         self.hyp_file()
         events = parse_hyp('hyptest.hyp')
         event = events[0]
-        mdict, sdict = full_pdf_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
-                                             1., 2.], [2., 1.]]), 'ln_pdf': np.matrix([0, 0.7]), 'dV': 1, 'probability': np.matrix([[1., 2.]]), 'total_number_samples': 400})
+        mdict, sdict = full_pdf_output_dicts(event, False, {'moment_tensor_space': np.array([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
+                                             1., 2.], [2., 1.]]), 'ln_pdf': np.array([0, 0.7]), 'dV': 1, 'probability': np.array([[1., 2.]]), 'total_number_samples': 400})
         self.assertTrue('Other' in mdict.keys())
         self.assertTrue('Events' in mdict.keys())
         self.assertTrue('Stations' in mdict.keys())
@@ -308,7 +290,7 @@ END_NLLOC
         self.assertTrue('NSamples' in mdict['Events'].keys())
         self.assertEqual(mdict['Stations'].shape, (20, 4))
         event['PPolarityProbability'] = event['PPolarity'].copy()
-        event['PPolarityProbability']['Measured'] = np.matrix([[0.6, 0.4],
+        event['PPolarityProbability']['Measured'] = np.array([[0.6, 0.4],
                                                                [0.7, 0.3],
                                                                [0.8, 0.2],
                                                                [0.67, 0.33],
@@ -330,8 +312,8 @@ END_NLLOC
                                                                [0.67, 0.33]
                                                                ])
         event.pop('PPolarity')
-        mdict, sdict = full_pdf_output_dicts(event, ['PPolarityProbability'], {'moment_tensor_space': np.matrix([[1., 2.], [2., 1.], [1., 2.], [
-                                             2., 1.], [1., 2.], [2., 1.]]), 'ln_pdf': np.matrix([0, 0.7]), 'dV': 1, 'probability': np.matrix([[1., 2.]]), 'total_number_samples': 400})
+        mdict, sdict = full_pdf_output_dicts(event, ['PPolarityProbability'], {'moment_tensor_space': np.array([[1., 2.], [2., 1.], [1., 2.], [
+                                             2., 1.], [1., 2.], [2., 1.]]), 'ln_pdf': np.array([0, 0.7]), 'dV': 1, 'probability': np.array([[1., 2.]]), 'total_number_samples': 400})
         self.assertTrue('Other' in mdict.keys())
         self.assertTrue('Events' in mdict.keys())
         self.assertTrue('Stations' in mdict.keys())
@@ -343,8 +325,8 @@ END_NLLOC
         self.assertEqual(mdict['Stations'].shape, (20, 4))
         self.assertTrue(all(mdict['Stations'][:, 3] == np.array(
             [0.6, 0.7, 0.8, 0.67, 0.94, -0.68, 0.96, 0.76, 0.82, -0.88, 0.57, 0.68, 0.51, 0.68, 0.5, -0.98, 0.6, 0.7, 0.8, 0.67])))
-        mdict, sdict = full_pdf_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
-                                             1., 2.], [2., 1.]]), 'ln_pdf': np.matrix([0, 0.7]), 'dV': 1, 'probability': np.matrix([[1., 2.]]), 'total_number_samples': 400})
+        mdict, sdict = full_pdf_output_dicts(event, False, {'moment_tensor_space': np.array([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
+                                             1., 2.], [2., 1.]]), 'ln_pdf': np.array([0, 0.7]), 'dV': 1, 'probability': np.array([[1., 2.]]), 'total_number_samples': 400})
         self.assertTrue('Other' in mdict.keys())
         self.assertTrue('Events' in mdict.keys())
         self.assertTrue('Stations' in mdict.keys())
@@ -359,16 +341,16 @@ END_NLLOC
         self.hyp_file()
         events = parse_hyp('hyptest.hyp')
         event = events[0]
-        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
-                                   1., 2.], [2., 1.]]), 'ln_pdf': np.matrix([0, 0.7]), 'probability': np.matrix([[1., 2.]]), 'total_number_samples': 400})
+        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.array([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
+                                   1., 2.], [2., 1.]]), 'ln_pdf': np.array([0, 0.7]), 'probability': np.array([[1., 2.]]), 'total_number_samples': 400})
         self.assertEqual(len(a.split('\n')), len(event['hyp_file'])+1)
         self.assertTrue('MOMENTTENSOR' in a)
         self.assertEqual(float(a.split()[a.split().index('MTNN')+1]), 2.0)
         self.assertEqual(len(b), 169)
         events = parse_hyp('hyptest.hyp')
         event = events[0]
-        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., 2., 3.], [2., 1., 3.], [1., 2., 3.], [2., 1., 3.], [
-                                   1., 2., 3.], [2., 1., 3.]]), 'ln_pdf': np.matrix([0, 0.7, 0]), 'probability': np.matrix([[1., 2., 1.]]), 'total_number_samples': 400})
+        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.array([[1., 2., 3.], [2., 1., 3.], [1., 2., 3.], [2., 1., 3.], [
+                                   1., 2., 3.], [2., 1., 3.]]), 'ln_pdf': np.array([0, 0.7, 0]), 'probability': np.array([[1., 2., 1.]]), 'total_number_samples': 400})
         self.assertEqual(len(a.split('\n')), len(event['hyp_file'])+1)
         self.assertTrue('MOMENTTENSOR' in a)
         self.assertEqual(float(a.split()[a.split().index('MTNN')+1]), 2.0)
@@ -376,15 +358,15 @@ END_NLLOC
         events = parse_hyp('hyptest.hyp')
         event = events[0]
         event['hyp_file'].pop(14)
-        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., 2., 3.], [2., 1., 3.], [1., 2., 3.], [2., 1., 3.], [
-                                   1., 2., 3.], [2., 1., 3.]]), 'ln_pdf': np.matrix([0, 0.7, 0]), 'probability': np.matrix([[1., 2., 1.]]), 'total_number_samples': 400})
+        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.array([[1., 2., 3.], [2., 1., 3.], [1., 2., 3.], [2., 1., 3.], [
+                                   1., 2., 3.], [2., 1., 3.]]), 'ln_pdf': np.array([0, 0.7, 0]), 'probability': np.array([[1., 2., 1.]]), 'total_number_samples': 400})
         self.assertEqual(len(a.split('\n')), len(event['hyp_file'])+2)
         self.assertTrue('MOMENTTENSOR' in a)
         self.assertEqual(float(a.split()[a.split().index('MTNN')+1]), 2.0)
         self.assertEqual(len(b), 233)
         event.pop('hyp_file')
-        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., 2., 3.], [2., 1., 3.], [1., 2., 3.], [2., 1., 3.], [
-                                   1., 2., 3.], [2., 1., 3.]]), 'ln_pdf': np.matrix([0, 0.7, 0]), 'probability': np.matrix([[1., 2., 1.]]), 'total_number_samples': 400})
+        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.array([[1., 2., 3.], [2., 1., 3.], [1., 2., 3.], [2., 1., 3.], [
+                                   1., 2., 3.], [2., 1., 3.]]), 'ln_pdf': np.array([0, 0.7, 0]), 'probability': np.array([[1., 2., 1.]]), 'total_number_samples': 400})
         self.assertEqual(len(a.split('\n')), 36)
         self.assertTrue('MOMENTTENSOR' in a)
         self.assertEqual(float(a.split()[a.split().index('MTNN')+1]), 2.0)
@@ -392,16 +374,16 @@ END_NLLOC
         events = parse_hyp('hyptest.hyp')
         event = events[0]
         event['hyp_file'].pop(14)
-        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., -0.51969334, 3.], [2., 0.22610635, 3.], [1., 0.29358698, 3.], [2., 0.58532165, 3.], [
-                                   1., -0.27015115, 3.], [2., -0.42073549, 3.]]), 'ln_pdf': np.matrix([0, 0.7, 0]), 'probability': np.matrix([[1., 2., 1.]]), 'total_number_samples': 400})
+        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.array([[1., -0.51969334, 3.], [2., 0.22610635, 3.], [1., 0.29358698, 3.], [2., 0.58532165, 3.], [
+                                   1., -0.27015115, 3.], [2., -0.42073549, 3.]]), 'ln_pdf': np.array([0, 0.7, 0]), 'probability': np.array([[1., 2., 1.]]), 'total_number_samples': 400})
         self.assertEqual(len(a.split('\n')), len(event['hyp_file'])+2)
         self.assertFalse('MOMENTTENSOR' in a)
         self.assertTrue('FOCALMECH' in a)
         self.assertAlmostEqual(
             float(a.split()[a.split().index('Mech')+1]), 0.5*180/np.pi, 5)
         self.assertEqual(len(b), 233)
-        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., -0.51969334, 3.], [2., 0.22610635, 3.], [1., 0.29358698, 3.], [2., 0.58532165, 3.], [1., -0.27015115, 3.], [2., -0.42073549, 3.]]),
-                                                  'probability': np.matrix([[1., 2., 1.]]), 'ln_pdf': np.matrix([0, 0.7, 0]), 'total_number_samples': 400, 'g': np.array([0.2, 0.2, 0.2]), 'd': np.array([0.2, 0.2, 0.2]), 'k': np.array([0.2, 0.2, 0.2]),
+        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.array([[1., -0.51969334, 3.], [2., 0.22610635, 3.], [1., 0.29358698, 3.], [2., 0.58532165, 3.], [1., -0.27015115, 3.], [2., -0.42073549, 3.]]),
+                                                  'probability': np.array([[1., 2., 1.]]), 'ln_pdf': np.array([0, 0.7, 0]), 'total_number_samples': 400, 'g': np.array([0.2, 0.2, 0.2]), 'd': np.array([0.2, 0.2, 0.2]), 'k': np.array([0.2, 0.2, 0.2]),
                                                   'h': np.array([0.2, 0.2, 0.2]), 's': np.array([0.2, 0.2, 0.2]), 'S1': np.array([0.2, 0.2, 0.2]), 'D1': np.array([0.2, 0.2, 0.2]), 'R1': np.array([0.2, 0.2, 0.2]), 'u': np.array([0.2, 0.2, 0.2]),
                                                   'v': np.array([0.2, 0.2, 0.2]), 'S2': np.array([0.2, 0.2, 0.2]), 'D2': np.array([0.2, 0.2, 0.2]), 'R2': np.array([0.2, 0.2, 0.2]), 'ln_bayesian_evidence': (1, 10)})
         self.assertEqual(len(a.split('\n')), len(event['hyp_file'])+2)
@@ -415,8 +397,8 @@ END_NLLOC
         self.hyp_file()
         events = parse_hyp('hyptest.hyp')
         event = events[0]
-        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
-                                   1., 2.], [2., 1.]]), 'ln_pdf': np.matrix([0, 0.7, 0]), 'probability': np.matrix([[1., 2.]]), 'total_number_samples': 400})
+        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.array([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
+                                   1., 2.], [2., 1.]]), 'ln_pdf': np.array([0, 0.7, 0]), 'probability': np.array([[1., 2.]]), 'total_number_samples': 400})
         try:
             os.remove('MTfitOUTPUTTEST.hyp')
         except Exception:
@@ -439,8 +421,8 @@ END_NLLOC
         except Exception:
             pass
         event['hyp_file'].pop(14)
-        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., -0.51969334, 3.], [2., 0.22610635, 3.], [1., 0.29358698, 3.], [2., 0.58532165, 3.], [1., -0.27015115, 3.], [2., -0.42073549, 3.]]),
-                                                  'probability': np.matrix([[1., 2., 1.]]), 'ln_pdf': np.matrix([0, 0.7, 0]), 'total_number_samples': 400, 'g': np.array([0.2, 0.2, 0.2]), 'd': np.array([0.2, 0.2, 0.2]), 'k': np.array([0.2, 0.2, 0.2]),
+        a, b, c = hyp_output_dicts(event, False, {'moment_tensor_space': np.array([[1., -0.51969334, 3.], [2., 0.22610635, 3.], [1., 0.29358698, 3.], [2., 0.58532165, 3.], [1., -0.27015115, 3.], [2., -0.42073549, 3.]]),
+                                                  'probability': np.array([[1., 2., 1.]]), 'ln_pdf': np.array([0, 0.7, 0]), 'total_number_samples': 400, 'g': np.array([0.2, 0.2, 0.2]), 'd': np.array([0.2, 0.2, 0.2]), 'k': np.array([0.2, 0.2, 0.2]),
                                                   'h': np.array([0.2, 0.2, 0.2]), 's': np.array([0.2, 0.2, 0.2]), 'S1': np.array([0.2, 0.2, 0.2]), 'D1': np.array([0.2, 0.2, 0.2]), 'R1': np.array([0.2, 0.2, 0.2]), 'u': np.array([0.2, 0.2, 0.2]),
                                                   'v': np.array([0.2, 0.2, 0.2]), 'S2': np.array([0.2, 0.2, 0.2]), 'D2': np.array([0.2, 0.2, 0.2]), 'R2': np.array([0.2, 0.2, 0.2]), 'ln_bayesian_evidence': 1.+10})
         try:
@@ -469,8 +451,8 @@ END_NLLOC
         self.hyp_file()
         events = parse_hyp('hyptest.hyp')
         event = events[0]
-        x = {'moment_tensor_space': np.matrix([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [1., 2.], [2., 1.]]), 'dkl': 1.2, 'ln_pdf': np.matrix(
-            [0, 0.7]), 'probability': np.matrix([[1., 2.]]), 'total_number_samples': 400}
+        x = {'moment_tensor_space': np.array([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [1., 2.], [2., 1.]]), 'dkl': 1.2, 'ln_pdf': np.array(
+            [[0, 0.7]]), 'probability': np.array([[1., 2.]]), 'total_number_samples': 400}
         a, b, c = hyp_output_dicts(event, False, x)
         try:
             os.remove('MTfitOUTPUTTEST.hyp')
@@ -498,8 +480,8 @@ END_NLLOC
             os.remove('MTfitOUTPUTTEST.mt')
         except Exception:
             pass
-        x = {'moment_tensor_space': np.matrix([[1., -0.51969334, 3.], [2., 0.22610635, 3.], [1., 0.29358698, 3.], [2., 0.58532165, 3.], [1., -0.27015115, 3.], [2., -0.42073549, 3.]]),
-             'probability': np.matrix([[1., 2., 1.]]), 'dkl': 2.4, 'ln_pdf': np.matrix([0, 0.7, 0]), 'total_number_samples': 400, 'g': np.array([0.1, 0.2, 0.3]), 'd': np.array([0.2, 0.2, 0.2]), 'k': np.array([0.2, 0.2, 0.2]),
+        x = {'moment_tensor_space': np.array([[1., -0.51969334, 3.], [2., 0.22610635, 3.], [1., 0.29358698, 3.], [2., 0.58532165, 3.], [1., -0.27015115, 3.], [2., -0.42073549, 3.]]),
+             'probability': np.array([[1., 2., 1.]]), 'dkl': 2.4, 'ln_pdf': np.array([[0, 0.7, 0]]), 'total_number_samples': 400, 'g': np.array([0.1, 0.2, 0.3]), 'd': np.array([0.2, 0.2, 0.2]), 'k': np.array([0.2, 0.2, 0.2]),
              'h': np.array([0.2, 0.2, 0.2]), 's': np.array([0.2, 0.2, 0.2]), 'S1': np.array([0.2, 0.2, 0.2]), 'D1': np.array([0.2, 0.2, 0.2]), 'R1': np.array([0.2, 0.2, 0.2]), 'u': np.array([0.2, 0.2, 0.2]),
              'v': np.array([0.2, 0.2, 0.2]), 'S2': np.array([0.2, 0.2, 0.2]), 'D2': np.array([0.2, 0.2, 0.2]), 'R2': np.array([0.2, 0.2, 0.2]), 'ln_bayesian_evidence': 1.+10.}
         a, b, c = hyp_output_dicts(event, False, x)
@@ -535,8 +517,8 @@ END_NLLOC
         self.hyp_file()
         events = parse_hyp('hyptest.hyp')
         event = events[0]
-        mdict, sdict = full_pdf_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
-                                             1., 2.], [2., 1.]]), 'ln_pdf': np.matrix([0, 0.7]), 'dV': 1, 'probability': np.matrix([[1., 2.]]), 'total_number_samples': 400})
+        mdict, sdict = full_pdf_output_dicts(event, False, {'moment_tensor_space': np.array([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
+                                             1., 2.], [2., 1.]]), 'ln_pdf': np.array([0, 0.7]), 'dV': 1, 'probability': np.array([[1., 2.]]), 'total_number_samples': 400})
         pickle_output([mdict, sdict], 'hyptest.out')
         event, stations = read_pickle_output('hyptest.out')
         self.assertAlmostEqual(event, mdict['Events'], 10)
@@ -551,8 +533,8 @@ END_NLLOC
         self.hyp_file()
         events = parse_hyp('hyptest.hyp')
         event = events[0]
-        mdict, sdict = full_pdf_output_dicts(event, False, {'moment_tensor_space': np.matrix([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
-                                             1., 2.], [2., 1.]]), 'ln_pdf': np.matrix([0, 0.7]), 'dV': 1, 'probability': np.matrix([[1., 2.]]), 'total_number_samples': 400})
+        mdict, sdict = full_pdf_output_dicts(event, False, {'moment_tensor_space': np.array([[1., 2.], [2., 1.], [1., 2.], [2., 1.], [
+                                             1., 2.], [2., 1.]]), 'ln_pdf': np.array([0, 0.7]), 'dV': 1, 'probability': np.array([[1., 2.]]), 'total_number_samples': 400})
         MATLAB_output([mdict, sdict], 'hyptest.mat')
         event, stations = read_matlab_output('hyptest.mat')
         self.assertAlmostEqual(event, mdict['Events'], 10)
@@ -578,12 +560,12 @@ END_NLLOC
 class UtilsTestCase(TestCase):
 
     def test_unique_columns(self):
-        data = np.matrix([[1, 0, 0, 2, 0, 1, 0],
-                          [0, 0, 0, -1, 0, 0, 0],
-                          [-1, 0, 0, -1, 0, -1, 0],
-                          [0, 0, 1, 0, 1, 0, 1],
-                          [0, 1, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0]])
+        data = np.array([[1, 0, 0, 2, 0, 1, 0],
+                         [0, 0, 0, -1, 0, 0, 0],
+                         [-1, 0, 0, -1, 0, -1, 0],
+                         [0, 0, 1, 0, 1, 0, 1],
+                         [0, 1, 0, 0, 0, 0, 0],
+                         [0, 0, 0, 0, 0, 0, 0]])
         unique = unique_columns(data)
         self.assertEqual(unique.shape, (6, 4))
         unique, counts = unique_columns(data, counts=True)
@@ -596,26 +578,3 @@ class UtilsTestCase(TestCase):
         unique, index = unique_columns(data, counts=False, index=True)
         self.assertEqual(unique.shape, (6, 4))
         self.assertEqual(set(index), set([3, 0, 2, 1]))
-
-    def test_convert_keys_to_unicode(self):
-        test = {'a': 1, 'b': {'c': 2}}
-        result = convert_keys_to_unicode(test)
-        if sys.version_info.major > 2:
-            self.assertTrue(all([isinstance(u, str) for u in result.keys()]))
-            self.assertTrue(all([isinstance(u, str) for u in result['b'].keys()]))
-        else:
-            self.assertTrue(all([isinstance(u, unicode) for u in result.keys()]))
-            self.assertTrue(all([isinstance(u, unicode) for u in result['b'].keys()]))
-
-    def test_convert_keys_from_unicode(self):
-        test = {'a': 1, 'b': {'c': 2}}
-        result = convert_keys_to_unicode(test)
-        if sys.version_info.major > 2:
-            self.assertTrue(all([isinstance(u, str) for u in result.keys()]))
-            self.assertTrue(all([isinstance(u, str) for u in result['b'].keys()]))
-        else:
-            self.assertTrue(all([isinstance(u, unicode) for u in result.keys()]))
-            self.assertTrue(all([isinstance(u, unicode) for u in result['b'].keys()]))
-        result = convert_keys_from_unicode(result)
-        self.assertTrue(all([isinstance(u, str) for u in result.keys()]))
-        self.assertTrue(all([isinstance(u, str) for u in result['b'].keys()]))

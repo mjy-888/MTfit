@@ -1,0 +1,102 @@
+[build-system]
+requires = ["setuptools>=69.0", "numpy>=1.26", "cython>=3.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "MTfit"
+version = "1.0.0"
+description = "MTfit: Bayesian Moment Tensor Inversion Code"
+readme = {text = """
+Bayesian moment tensor inversion code based on the approach described in Pugh, D J, 2015,
+Bayesian Source Inversion of Microseismic Events, PhD Thesis, Department of Earth Sciences,
+University of Cambridge.""", content-type = "text/plain"}
+requires-python = ">=3.10"
+license = {text = "Free for non-commercial use"}
+authors = [
+    {name = "David J Pugh", email = "david.j.pugh@cantab.net"},
+]
+classifiers = [
+    "Environment :: Console",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: Free for non-commercial use",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX",
+    "Programming Language :: Cython",
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "cython>=3.0",
+    "setuptools",
+]
+
+[project.optional-dependencies]
+matlab = ["h5py", "hdf5storage"]
+cluster = ["pyqsub>=1.0.2"]
+plotting = ["matplotlib>=3.8"]
+docs = ["sphinx>=7.0"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov",
+]
+
+[project.scripts]
+MTfit = "MTfit.run:run"
+MTplot = "MTfit.plot.core:run"
+
+[project.entry-points."MTfit.parsers"]
+".csv" = "MTfit.utilities.file_io:parse_csv"
+".hyp" = "MTfit.utilities.file_io:parse_hyp"
+
+[project.entry-points."MTfit.location_pdf_parsers"]
+".scatangle" = "MTfit.extensions.scatangle:location_pdf_parser"
+
+[project.entry-points."MTfit.output_formats"]
+matlab = "MTfit.utilities.file_io:MATLAB_output"
+pickle = "MTfit.utilities.file_io:pickle_output"
+hyp = "MTfit.utilities.file_io:hyp_output"
+
+[project.entry-points."MTfit.output_data_formats"]
+full_pdf = "MTfit.utilities.file_io:full_pdf_output_dicts"
+hyp = "MTfit.utilities.file_io:hyp_output_dicts"
+
+[project.entry-points."MTfit.cmd_defaults"]
+scatangle = "MTfit.extensions.scatangle:cmd_defaults"
+
+[project.entry-points."MTfit.cmd_opts"]
+scatangle = "MTfit.extensions.scatangle:cmd_opts"
+
+[project.entry-points."MTfit.pre_inversion"]
+scatangle = "MTfit.extensions.scatangle:pre_inversion"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+MTfit = [
+    "*.rst",
+    "*.pyx",
+    "*.pxd",
+    "*.c",
+    "extensions/example_parser/*",
+    "extensions/model_sampling_strike_slip/*",
+    "extensions/model_sampling_clvd/*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["src/MTfit/tests"]
+log_level = "WARNING"
+
+[tool.coverage.run]
+source = ["MTfit"]
+
+[tool.coverage.report]
+omit = ["*/tests/*", "*/plot/*"]

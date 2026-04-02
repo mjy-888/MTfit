@@ -1,48 +1,33 @@
 import unittest
 import os
-import sys
 import tempfile
 import glob
-import shutil
 
 import numpy as np
+
+from unittest import mock
 
 from MTfit.utilities.file_io import _convert_mt_space_to_struct
 from MTfit.run import MTfit, ERROR_MESSAGE
 from MTfit import get_details_json
-
-if sys.version_info >= (3, 3):
-    from unittest import mock
-else:
-    import mock
 
 
 class RunTestCase(unittest.TestCase):
 
     def setUp(self):
         self.cwd = os.getcwd()
-        if sys.version_info >= (3, 0):
-            self.tempdir = tempfile.TemporaryDirectory()
-            os.chdir(self.tempdir.name)
-        else:
-            self.tempdir = tempfile.mkdtemp()
-            os.chdir(self.tempdir)
+        self.tempdir = tempfile.TemporaryDirectory()
+        os.chdir(self.tempdir.name)
 
     def tearDown(self):
         os.chdir(self.cwd)
-        if sys.version_info >= (3, 0):
-            self.tempdir.cleanup()
-        else:
-            try:
-                shutil.rmtree(self.tempdir)
-            except:
-                pass
+        self.tempdir.cleanup()
 
     def test_MTfit(self):
         logfiles = glob.glob('*.log')
         import numpy as np
         data = {'PPolarity': {'Stations': {'Name': ['S0649', "S0162", "S0083"], 'Azimuth': np.array([90.0, 270.0, 180.0]), 'TakeOffAngle': np.array([30.0, 60.0, 35.])},
-                              'Measured': np.matrix([[1], [-1], [-1]]), 'Error': np.matrix([[0.001], [0.5], [0.02]])}}
+                              'Measured': np.array([[1], [-1], [-1]]), 'Error': np.array([[0.001], [0.5], [0.02]])}}
         MTfit(data, max_time=10, phy_mem=0.5, parallel=False, convert=False)
         self.assertTrue(os.path.exists('MTfitOutputMT.mat'))
         os.remove('MTfitOutputMT.mat')
@@ -51,7 +36,6 @@ class RunTestCase(unittest.TestCase):
             if logfile not in logfiles:
                 os.remove(logfile)
 
-    @unittest.skipIf(sys.version_info < (3, 0), 'Requires python 3')
     def test_MTfit_error(self):
         with mock.patch('MTfit.run.print') as _print:
             with mock.patch('MTfit.run.get_extensions') as get_extensions:

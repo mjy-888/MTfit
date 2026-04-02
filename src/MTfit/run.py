@@ -10,15 +10,13 @@ Core module for MTfit - handles all the command line parsing logic and calling t
 #
 # Applications for commercial use should be made to Schlumberger or the University of Cambridge.
 
-
-import os
+from pathlib import Path
 import subprocess
 import warnings
 import traceback
 
-# Test flag for running qsub flags in test
 try:
-    import pyqsub  # python module for cluster job submission using qsub.
+    import pyqsub
     _PYQSUB = True
 except Exception:
     _PYQSUB = False
@@ -60,34 +58,17 @@ including the traceback and the following information to help with diagnosis:
 """
 
 
-# Main MTfit function
-
-def MTfit(data={}, data_file=False, location_pdf_file_path=False, algorithm='Time', parallel=True, n=0, phy_mem=8, dc=False, **kwargs):
+def MTfit(data: dict | None = None, data_file: str | list | bool = False,
+          location_pdf_file_path: str | list | bool = False,
+          algorithm: str = 'Time', parallel: bool = True, n: int = 0,
+          phy_mem: int = 8, dc: bool = False, **kwargs) -> int:
     """
     Runs MTfit
 
     Creates an MTfit.inversion.Inversion object for the given arguments and runs the forward model based inversion.
-    For a simple method of initialising the inversion use the command line approach (see MTfit docs).
-
-    Args
-        Data: Data dictionary (see MTfit.inversion.Inversion for structure).
-        data_file: File or list of files which are pickled Data dictionaries.
-        location_pdf_file_path: Path to angle scatter files or List of Angle Scatter Files (for Monte carlo marginalisation over location and model uncertainty)
-            Can be generated from NonLinLoc *.scat files.
-        algorithm:['Time'] Default search algorithm, for more information on the different algorithms see the MTfit.inversion.Inversion docstrings.
-        parallel:['True'] Selects whether to run the inversion in parallel or on a single thread.
-        n:[0] Number of threads to use, 0 defaults to all available threads reported by the system (from multiprocessing.cpu_count()).
-        phy_mem:[8Gb] Estimated physical memory to use (used for determining array sizes, it is likely that more memory will be used, and if so no errors are forced).
-        dc:[False] If true constrains the inversion to the double-couple space only.
-
-    Keyword Arguments
-        Test:[False] If true, runs unittests rather than the inversion.
-        Other arguments to pass to the MTfit.inversion.Inversion object or for the algorithm (for more information see the MTfit.inversion.Inversion docstrings).
-
-    Returns
-        0
-
     """
+    if data is None:
+        data = {}
     try:
         kwargs['data'] = data
         kwargs['data_file'] = data_file
@@ -101,33 +82,25 @@ def MTfit(data={}, data_file=False, location_pdf_file_path=False, algorithm='Tim
         pre_inversion_names, pre_inversions = get_extensions('MTfit.pre_inversion', default_pre_inversions)
         post_inversion_names, post_inversions = get_extensions('MTfit.post_inversion', default_post_inversions)
         extension_names, extensions = get_extensions('MTfit.extension', default_extensions)
-        # Default extensions
         for ext in extensions.values():
             result = ext(**kwargs)
             if result != 1:
                 return result
-        # Check combine mpi output
         if kwargs.get('combine_mpi_output', False):
-            combine_mpi_output(kwargs.get('path', ''), kwargs.get('output_format', 'matlab'), **kwargs)  # binary_file_version flag set here
+            combine_mpi_output(kwargs.get('path', ''), kwargs.get('output_format', 'matlab'), **kwargs)
             return 0
-        if len(data) or (isinstance(data_file, str) and not os.path.isdir(data_file)) or isinstance(data_file, list):
+        if len(data) or (isinstance(data_file, str) and not Path(data_file).is_dir()) or isinstance(data_file, list):
             warnings.filterwarnings(WARNINGS_MAP[kwargs.get('warnings', 'd')])
-            # Pre-inversion
             for plugin in pre_inversions.values():
                 kwargs = plugin(**kwargs)
             if not kwargs.get('_mpi_call', False):
                 print('Running MTfit.')
-            # Effectively
-            # inversion = Inversion(data, data_file, location_pdf_file_path, algorithm, parallel, n, phy_mem, dc, **kwargs)
-            # but allowing the pre inversion plugin to change the kwargs
             inversion = Inversion(**kwargs)
             inversion.forward()
             if kwargs.get('dc_mt', False):
-                # inversion = Inversion(data, data_file, location_pdf_file_path, algorithm, parallel, n, phy_mem, not dc, **kwargs)
                 kwargs['dc'] = not kwargs['dc']
                 inversion = Inversion(**kwargs)
                 inversion.forward()
-            # Post-inversion
             for plugin in post_inversions.values():
                 plugin(**kwargs)
             return 0
@@ -137,18 +110,9 @@ def MTfit(data={}, data_file=False, location_pdf_file_path=False, algorithm='Tim
         raise e
 
 
-def run(args=None):
+def run(args: list[str] | None = None) -> int:
     """
-    Runs inversion from command line arguments
-
-    Runs the command line options parser and either submits job to cluster or runs the inversion on the local machine depending on the command line arguments
-
-    Args
-        args:[None] Input arguments - if not given, defaults to using sys.argv
-
-    Returns
-        0
-
+    Runs inversion from command line arguments.
     """
     options, options_map = MTfit_parser(args)
     if options['qsub'] and _PYQSUB:
@@ -164,12 +128,9 @@ def run(args=None):
                 options.pop(key)
         if options['mpi'] and not options['_mpi_call']:
             try:
-                # could add extra changeable MPI python handling here (and
-                # elsewhere?)
-                import mpi4py  # noqa F401
+                import mpi4py  # noqa: F401
             except Exception:
                 raise ImportError('MPI module mpi4py not found, unable to run in mpi')
-            # restart python as mpirun
             options['_mpi_call'] = True
             print('Running MTfit using mpirun')
             optstring = pyqsub.make_optstr(options, options_map)

@@ -6,7 +6,7 @@ Tests for src/convert/moment_tensor_conversion.py
 """
 
 import unittest
-import sys
+from unittest import mock
 
 import numpy as np
 
@@ -52,12 +52,6 @@ from MTfit.utilities import C_EXTENSION_FALLBACK_LOG_MSG
 from MTfit.utilities.unittest_utils import TestCase
 from MTfit.utilities.unittest_utils import get_extension_skip_if_args
 
-if sys.version_info >= (3, 3):
-    from unittest import mock
-else:
-    import mock
-
-
 C_EXTENSIONS = get_extension_skip_if_args('MTfit.convert.cmoment_tensor_conversion')
 
 
@@ -81,18 +75,18 @@ class MomentTensorConvertTestCase(TestCase):
         self.MT33 = np.array([[1, 1/np.sqrt(2), 0], [1/np.sqrt(2), 0, 2/np.sqrt(2)], [0, 2/np.sqrt(2), -2]])
         self.MT33norm = np.sqrt(np.sum(self.MT33*self.MT33))
         # Values from matlab code
-        self.Tmt = np.matrix([0.78187414360087504, 0.57856722491374268, 0.23223434247330654]).T
-        self.Nmt = np.matrix([0.61708838355029516, -0.66519145682767544, -0.42038345905941465]).T
-        self.Pmt = np.matrix([0.088739790712409491, -0.47199607, 0.87712311]).T
-        self.Emt = np.matrix([1.5232412549475853, 0.23777306063666762, -2.7610143155842528]).T
+        self.Tmt = np.array([[0.78187414360087504], [0.57856722491374268], [0.23223434247330654]])
+        self.Nmt = np.array([[0.61708838355029516], [-0.66519145682767544], [-0.42038345905941465]])
+        self.Pmt = np.array([[0.088739790712409491], [-0.47199607], [0.87712311]])
+        self.Emt = np.array([[1.5232412549475853], [0.23777306063666762], [-2.7610143155842528]])
         self.amt = 1.9822156229199277
         self.vmt = -0.19209745970264186
         self.adc = np.pi/2
         self.vdc = 0.5
-        self.Tdc = np.matrix([1/np.sqrt(2), 1/np.sqrt(2), 0]).T
-        self.Ndc = np.matrix([0., 0., 1.]).T
-        self.Pdc = np.matrix([-1/np.sqrt(2), 1/np.sqrt(2), 0]).T
-        self.Edc = np.matrix([1/np.sqrt(2), 0, -1/np.sqrt(2)]).T
+        self.Tdc = np.array([[1/np.sqrt(2)], [1/np.sqrt(2)], [0.]])
+        self.Ndc = np.array([[0.], [0.], [1.]])
+        self.Pdc = np.array([[-1/np.sqrt(2)], [1/np.sqrt(2)], [0.]])
+        self.Edc = np.array([[1/np.sqrt(2)], [0.], [-1/np.sqrt(2)]])
         self.Gmt = 0.22691207246521938
         self.Dmt = -0.18360401027891848
         self.Umt = 0.41369317844275666
@@ -105,10 +99,10 @@ class MomentTensorConvertTestCase(TestCase):
         self.Vdc = 0.
         self.tdc = 0.
         self.kdc = 0.
-        self.N1mt = np.matrix([0.61561701812768677, 0.075357186487224101, 0.78443417916119973]).T
-        self.N2mt = np.matrix([0.49012000239468767, 0.7428604317087556, -0.4560052217399625]).T
-        self.N1dc = np.matrix([0, 1., 0]).T
-        self.N2dc = np.matrix([1., 0, 0]).T
+        self.N1mt = np.array([[0.61561701812768677], [0.075357186487224101], [0.78443417916119973]])
+        self.N2mt = np.array([[0.49012000239468767], [0.7428604317087556], [-0.4560052217399625]])
+        self.N1dc = np.array([[0.], [1.], [0.]])
+        self.N2dc = np.array([[1.], [0.], [0.]])
         self.S1mt = 1.69259957
         self.D1mt = 0.66901303
         self.R1mt = -2.31557077
@@ -604,8 +598,8 @@ class MomentTensorConvertTestCase(TestCase):
         self.assertAlmostEquals(Rmt, self.R1mt)
 
     def test_FP_SDR_matrix(self):
-        [Sdc, Ddc, Rdc] = FP_SDR(np.matrix(self.N1dc), np.matrix(self.N2dc))
-        [Smt, Dmt, Rmt] = FP_SDR(np.matrix(self.N1mt), np.matrix(self.N2mt))
+        [Sdc, Ddc, Rdc] = FP_SDR(np.array(self.N1dc), np.array(self.N2dc))
+        [Smt, Dmt, Rmt] = FP_SDR(np.array(self.N1mt), np.array(self.N2mt))
         self.assertAlmostEquals(Sdc, self.S1dc)
         self.assertAlmostEquals(Ddc, self.D1dc)
         self.assertAlmostEquals(Rdc, self.R1dc)
@@ -676,11 +670,11 @@ class MomentTensorConvertTestCase(TestCase):
         Edc = GD_E(self.Gdc, self.Ddc)
         Emt = GD_E(self.Gmt, self.Dmt)
         self.assertAlmostEquals(Edc, self.Edc)
-        self.assertAlmostEquals(Emt, self.Emt/np.sqrt(np.diag(self.Emt.T*self.Emt)))
+        self.assertAlmostEquals(Emt, self.Emt/np.sqrt(np.diag(self.Emt.T @ self.Emt)))
         E = GD_E(np.array([self.Gmt, self.Gdc]),
                  np.array([self.Dmt, self.Ddc]))
         self.assertAlmostEquals(E[:, 1], self.Edc)
-        self.assertAlmostEquals(E[:, 0], self.Emt/np.sqrt(np.diag(self.Emt.T*self.Emt)))
+        self.assertAlmostEquals(E[:, 0], self.Emt/np.sqrt(np.diag(self.Emt.T @ self.Emt)))
 
     def test_SDR_TNP(self):
         [Tdc, Ndc, Pdc] = SDR_TNP(self.S1dc, self.D1dc, self.R1dc)
@@ -1306,7 +1300,7 @@ class MomentTensorConvertTestCase(TestCase):
         self.assertVectorEquals(Tmt, self.Tmt, 4)
         self.assertVectorEquals(Nmt, self.Nmt, 4)
         self.assertVectorEquals(Pmt, self.Pmt, 4)
-        Emtnorm = np.sqrt(self.Emt.T*self.Emt)
+        Emtnorm = np.sqrt(self.Emt.T @ self.Emt)
         self.assertAlmostEquals(Emt, self.Emt/Emtnorm, 4)
         [Tdc, Ndc, Pdc, Edc] = Tape_TNPE(self.Gdc, self.Ddc, self.Kdc, self.Hdc, self.Odc)
         self.assertVectorEquals(Tdc, self.Tdc, 4)
@@ -1348,11 +1342,11 @@ class MomentTensorConvertTestCase(TestCase):
 
     def test_toa_vec_radians(self):
         vec = toa_vec(np.pi/4, np.pi/4, True)
-        self.assertVectorEquals(vec, np.matrix([[0.5], [0.5], [1/np.sqrt(2)]]))
+        self.assertVectorEquals(vec, np.array([[0.5], [0.5], [1/np.sqrt(2)]]))
 
     def test_toa_vec_degrees(self):
         vec = toa_vec(45., 45., False)
-        self.assertVectorEquals(vec, np.matrix([[0.5], [0.5], [1/np.sqrt(2)]]))
+        self.assertVectorEquals(vec, np.array([[0.5], [0.5], [1/np.sqrt(2)]]))
 
     @mock.patch('MTfit.convert.moment_tensor_conversion.logger')
     def test_output_convert_mt(self, logger):

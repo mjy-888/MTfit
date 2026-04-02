@@ -10,41 +10,22 @@ Provides test functions for running and debugging unit tests.
 # Applications for commercial use should be made to Schlumberger or the University of Cambridge.
 
 import unittest
-import sys
 import importlib
 import traceback
 
 import numpy as np
 
 
-def get_extension_skip_if_args(module):
+def get_extension_skip_if_args(module: str) -> tuple[bool, str]:
     reason = 'No C extension available'
     try:
         c_extension = importlib.import_module(module)
     except ImportError:
         c_extension = False
     except Exception:
-        reason += '\n=======\nException loading C extension = \n{}\n=======\n'.format(traceback.format_exc())
+        reason += f'\n=======\nException loading C extension = \n{traceback.format_exc()}\n=======\n'
         c_extension = False
     return (not c_extension, reason)
-
-
-# class PythonOnly(object):
-
-#     def __init__(self, *args):
-#         self.c_extensions = []
-#         self.original_values = []
-#         for arg in args:
-#             self.c_extensions.append(arg)
-#             self.original_values = globals()[arg]
-
-#     def __enter__(self, *args, **kwargs):
-#         for extension in self.c_extensions:
-#             globals()[extension] = False
-
-#     def __exit__(self, *args, **kwargs):
-#         for i, extension in enumerate(self.c_extensions):
-#             globals()[extension] = self.original_values[i]
 
 
 class TestCase(unittest.TestCase):
@@ -52,7 +33,6 @@ class TestCase(unittest.TestCase):
     def assertAlmostEqual(self, first, second, places=None, msg=None, delta=None):
 
         if isinstance(first, np.ndarray) or isinstance(second, np.ndarray):
-            # Handle array and vectors
             if isinstance(second, (list, float, int)):
                 second = np.array(second)
             if isinstance(first, (list, float, int)):
@@ -74,17 +54,12 @@ class TestCase(unittest.TestCase):
                 self.assertAlmostEqual(first[key], second[key])
             return
         elif isinstance(first, list) and isinstance(second, list):
-            super(TestCase, self).assertAlmostEqual(set(first), set(second), msg, delta)
+            super().assertAlmostEqual(set(first), set(second), msg, delta)
         else:
-            super(TestCase, self).assertAlmostEqual(first, second, places, msg, delta)
-
-    def assertAlmostEquals(self, *args, **kwargs):
-        self.assertAlmostEqual(*args, **kwargs)
+            super().assertAlmostEqual(first, second, places, msg, delta)
 
     def assertEqual(self, first, second, msg=None):
         if isinstance(first, np.ndarray) or isinstance(second, np.ndarray):
-            # Handle matrix and vector
-
             np.testing.assert_array_equal(first, second)
             return
         elif isinstance(first, dict) and isinstance(second, dict):
@@ -94,24 +69,25 @@ class TestCase(unittest.TestCase):
                 self.assertEqual(first[key], second[key])
             return
         elif isinstance(first, list) and isinstance(second, list):
-            super(TestCase, self).assertEqual(first, second, msg)
-
+            super().assertEqual(first, second, msg)
         else:
-            super(TestCase, self).assertAlmostEqual(first, second, msg)
+            super().assertAlmostEqual(first, second, msg)
+
+    def assertAlmostEquals(self, *args, **kwargs):
+        return self.assertAlmostEqual(*args, **kwargs)
 
     def assertEquals(self, *args, **kwargs):
-        self.assertEqual(*args, **kwargs)
+        return self.assertEqual(*args, **kwargs)
 
     def assertVectorEquals(self, first, second, *args):
+        first = np.asarray(first)
+        second = np.asarray(second)
         try:
             first_norm = np.sqrt(np.sum(np.multiply(first, first)))
             second_norm = np.sqrt(np.sum(np.multiply(second, second)))
-            return self.assertAlmostEquals(first/first_norm, second/second_norm, *args)
+            return self.assertAlmostEqual(first / first_norm, second / second_norm, *args)
         except AssertionError as e1:
             try:
-                return self.assertAlmostEquals(-first/first_norm, second/second_norm, *args)
+                return self.assertAlmostEqual(-first / first_norm, second / second_norm, *args)
             except AssertionError as e2:
-                if sys.version_info.major <= 2 and sys.version_info.minor <= 6:
-                    raise AssertionError(e1.message+' or '+e2.message)
-                else:
-                    raise AssertionError('{} or {}'.format(e1.args, e2.args))
+                raise AssertionError(f'{e1.args} or {e2.args}')

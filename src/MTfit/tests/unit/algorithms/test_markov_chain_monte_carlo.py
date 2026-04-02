@@ -1,6 +1,6 @@
 import unittest
 import copy
-import sys
+from unittest import mock
 
 import numpy as np
 
@@ -18,15 +18,10 @@ import MTfit.algorithms.markov_chain_monte_carlo as markov_chain_monte_carlo
 from MTfit.utilities import C_EXTENSION_FALLBACK_LOG_MSG
 from MTfit.utilities.unittest_utils import get_extension_skip_if_args
 
-if sys.version_info >= (3, 3):
-    from unittest import mock
-else:
-    import mock
-
 C_EXTENSIONS = get_extension_skip_if_args('MTfit.algorithms.cmarkov_chain_monte_carlo')
 
 
-class PythonOnly(object):
+class PythonOnly:
 
     def __enter__(self, *args, **kwargs):
         self.cmarkov_chain_monte_carlo = markov_chain_monte_carlo.cmarkov_chain_monte_carlo

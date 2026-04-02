@@ -1,6 +1,6 @@
 import unittest
 from types import MethodType
-import sys
+from unittest import mock
 
 import numpy as np
 
@@ -8,16 +8,11 @@ from MTfit.utilities import C_EXTENSION_FALLBACK_LOG_MSG
 from MTfit.utilities.unittest_utils import get_extension_skip_if_args
 import MTfit.algorithms.base as base
 
-if sys.version_info >= (3, 3):
-    from unittest import mock
-else:
-    import mock
-
 
 C_EXTENSIONS = get_extension_skip_if_args('MTfit.probability.cprobability')
 
 
-class PythonOnly(object):
+class PythonOnly:
 
     def __enter__(self, *args, **kwargs):
         self.cprobability = base.cprobability
@@ -124,10 +119,7 @@ class BaseAlgorithmTestCase(unittest.TestCase):
     def test_clvd_sampling(self):
         self.tearDown()
         self.setUp(sample_distribution='clvd')
-        if sys.version_info.major > 2:
-            self.assertEqual(self.base_algorithm.random_model.__name__, self.base_algorithm.random_clvd.__name__)
-        else:
-            self.assertEqual(self.base_algorithm.random_model, self.base_algorithm.random_clvd)
+        self.assertEqual(self.base_algorithm.random_model.__name__, self.base_algorithm.random_clvd.__name__)
 
     def test_random_mt(self):
         self.assertTrue(self.base_algorithm.random_mt().shape,

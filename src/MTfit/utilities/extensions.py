@@ -15,64 +15,58 @@ Simple functions that are used throughout the module
 # Applications for commercial use should be made to Schlumberger or the University of Cambridge.
 
 
-import pkg_resources
+from importlib.metadata import entry_points
 
 
-def get_extensions(group, defaults=False):
+def get_extensions(group: str, defaults: dict | bool = False) -> tuple[list[str], dict]:
     """
-    Get the setuptools entrypoint installed extensions for a given entrypoint
-    (group). Default values can be set using a dictionary of name:function values.
+    Get the installed extensions for a given entry point group.
 
     Args
-        group: str setuptools entrypoint name.
+        group: entry point group name.
 
     Keyword Args
-        defaults: dict dictionary of name:function pairs for default values.
+        defaults: dictionary of name:function pairs for default values.
 
     Returns
-        (list,dict): tuple of extension name list and dictionary of extension name : function pairs.
+        (list, dict): tuple of extension name list and dictionary of extension name : function pairs.
     """
     names = []
     funcs = {}
-    # Defaults
-    if type(defaults) == dict:
-        for (plugin_name, plugin) in defaults.items():
+    if isinstance(defaults, dict):
+        for plugin_name, plugin in defaults.items():
             if plugin_name not in names:
                 funcs[plugin_name] = plugin
                 names.append(plugin_name)
-    # Entrypoints
-    for entrypoint in pkg_resources.iter_entry_points(group=group):
-        plugin = entrypoint.load()
-        names.append(entrypoint.name.lower())
-        funcs[entrypoint.name.lower()] = plugin
+    for ep in entry_points(group=group):
+        plugin = ep.load()
+        names.append(ep.name.lower())
+        funcs[ep.name.lower()] = plugin
     names = list(set(names))
     return (names, funcs)
 
 
-def evaluate_extensions(group, defaults=False, **kwargs):
+def evaluate_extensions(group: str, defaults: dict | bool = False, **kwargs) -> list:
     """
-    Return the list of results from evaluating all the extensions in a given
-    group (used for e.g. documentation entrypoint)
+    Return the list of results from evaluating all the extensions in a given group.
 
     Args
-        group: str setuptools entrypoint name.
+        group: entry point group name.
 
     Keyword Args
-        defaults: dict dictionary of name:function pairs for default values.
+        defaults: dictionary of name:function pairs for default values.
 
     Returns
-        list: List of results from evaluating each extensions function for the entrypoint.
+        list: List of results from evaluating each extension's function.
     """
     results = []
     try:
-        # Defaults
-        if type(defaults) == dict:
+        if isinstance(defaults, dict):
             for plugin in defaults.values():
                 results.append(plugin(**kwargs))
-        # Entrypoints
-        for entrypoint in pkg_resources.iter_entry_points(group=group):
+        for ep in entry_points(group=group):
             try:
-                plugin = entrypoint.load()
+                plugin = ep.load()
                 results.append(plugin(**kwargs))
             except Exception:
                 pass

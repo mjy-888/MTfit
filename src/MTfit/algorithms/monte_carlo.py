@@ -14,6 +14,7 @@ Module containing algorithm classes for Monte Carlo random sampling.
 import time
 import gc
 import logging
+from typing import Any
 
 from .base import BaseAlgorithm
 from .base import PRINT_N_ITERATIONS
@@ -34,7 +35,7 @@ class BaseMonteCarloRandomSample(BaseAlgorithm):
 
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """
         Initialisation of BaseMonteCarloRandomSample object
 
@@ -46,11 +47,11 @@ class BaseMonteCarloRandomSample(BaseAlgorithm):
             basic_cdc:[False] Boolean to select whether to us the Basic CDC model (inversion constrained to double-couple space or over the full moment tensor space.
 
         """
-        super(BaseMonteCarloRandomSample, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._min_number_check_samples = kwargs.get('min_number_check_samples', 30000)
         self.iteration = 0
 
-    def random_sample(self):
+    def random_sample(self) -> Any:
         """
         Return random sample
 
@@ -69,16 +70,16 @@ class BaseMonteCarloRandomSample(BaseAlgorithm):
                 i += 1
             return MTs
         else:
-            return super(BaseMonteCarloRandomSample, self).random_sample()
+            return super().random_sample()
 
     @property
     def total_number_samples(self):
         return self.pdf_sample.n
 
-    def check_finished(self, end):
+    def check_finished(self, end: bool) -> bool:
         return end
 
-    def iterate(self, result):
+    def iterate(self, result: dict) -> tuple[Any, bool]:
         """
         Iteration function for BaseMonteCarloRandomSample object
 
@@ -118,7 +119,7 @@ class BaseMonteCarloRandomSample(BaseAlgorithm):
         gc.collect()
         return task, end
 
-    def initialise(self):
+    def initialise(self) -> tuple[Any, bool]:
         """
         Initial task for ForwardTask
 
@@ -143,7 +144,7 @@ class TimeSample(BaseMonteCarloRandomSample):
 
     """
 
-    def __init__(self, max_time=600, *args, **kwargs):
+    def __init__(self, max_time: float = 600, *args, **kwargs) -> None:
         """
         Initialisation of TimeSample
 
@@ -156,13 +157,13 @@ class TimeSample(BaseMonteCarloRandomSample):
             BasicCDC:[False] Boolean to select whether to us the Basic CDC model (inversion constrained to double-couple space or over the full moment tensor space.
 
         """
-        super(TimeSample, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.max_time = float(max_time)
 
-    def max_value(self):
-        return '{} seconds'.format(self.max_time)
+    def max_value(self) -> str:
+        return f'{self.max_time} seconds'
 
-    def check_finished(self, end):
+    def check_finished(self, end: bool) -> bool:
         if time.time()-self.start_time >= self.max_time:
             end = True
         return end
@@ -177,7 +178,7 @@ class IterationSample(BaseMonteCarloRandomSample):
 
     """
 
-    def __init__(self, max_samples=600000, *args, **kwargs):
+    def __init__(self, max_samples: int = 600000, *args, **kwargs) -> None:
         """
         Initialisation of IterationSample
 
@@ -190,13 +191,13 @@ class IterationSample(BaseMonteCarloRandomSample):
             basic_cdc:[False] Boolean to select whether to us the Basic CDC model (inversion constrained to double-couple space or over the full moment tensor space.
 
         """
-        super(IterationSample, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.max_samples = int(max_samples)
 
-    def max_value(self):
-        return '{} samples'.format(self.max_samples)
+    def max_value(self) -> str:
+        return f'{self.max_samples} samples'
 
-    def check_finished(self, end):
+    def check_finished(self, end: bool) -> bool:
         if self.pdf_sample.n >= self.max_samples:
             end = True
         return end

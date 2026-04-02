@@ -34,7 +34,7 @@ except Exception:
     cmoment_tensor_conversion = None
 
 
-def MT33_MT6(MT33):
+def MT33_MT6(MT33: np.ndarray) -> np.ndarray:
     """
     Convert a 3x3 matrix to six vector maintaining normalisation. 6-vector has the form::
 
@@ -46,19 +46,19 @@ def MT33_MT6(MT33):
         sqrt(2)*Myz
 
     Args
-        M33: 3x3 numpy matrix
+        M33: 3x3 numpy ndarray
 
     Returns
-        numpy.matrix: MT 6-vector
+        numpy.ndarray: MT 6-vector
 
     """
-    MT6 = np.matrix([[MT33[0, 0]], [MT33[1, 1]], [MT33[2, 2]], [np.sqrt(2)*MT33[0, 1]],
+    MT6 = np.array([[MT33[0, 0]], [MT33[1, 1]], [MT33[2, 2]], [np.sqrt(2)*MT33[0, 1]],
                      [np.sqrt(2)*MT33[0, 2]], [np.sqrt(2)*MT33[1, 2]]])
-    MT6 = np.matrix(MT6/np.sqrt(np.sum(np.multiply(MT6, MT6), axis=0)))
+    MT6 = np.asarray(MT6/np.sqrt(np.sum(np.multiply(MT6, MT6), axis=0)))
     return MT6
 
 
-def MT6_MT33(MT6):
+def MT6_MT33(MT6: np.ndarray) -> np.ndarray:
     """
     Convert a six vector to a 3x3 MT maintaining normalisation. 6-vector has the form::
 
@@ -70,32 +70,33 @@ def MT6_MT33(MT6):
         sqrt(2)*Myz
 
     Args
-        MT6: numpy matrix Moment tensor 6-vector
+        MT6: numpy ndarray Moment tensor 6-vector
 
     Returns
-        numpy.matrix: 3x3 Moment Tensor
+        numpy.ndarray: 3x3 Moment Tensor
     """
+    MT6 = np.asarray(MT6)
     if np.prod(MT6.shape) != 6:
-        raise ValueError("Input MT must be 6 vector not {}".format(MT6.shape))
+        raise ValueError(f"Input MT must be 6 vector not {MT6.shape}")
     if len(MT6.shape) == 1:
-        MT6 = np.matrix(MT6)
+        MT6 = np.atleast_2d(MT6)
     if len(MT6.shape) == 2 and MT6.shape[1] == 6:
         MT6 = MT6.T
-    return np.matrix([[MT6[0, 0], (1/np.sqrt(2))*MT6[3, 0], (1/np.sqrt(2))*MT6[4, 0]],
+    return np.array([[MT6[0, 0], (1/np.sqrt(2))*MT6[3, 0], (1/np.sqrt(2))*MT6[4, 0]],
                       [(1/np.sqrt(2))*MT6[3, 0], MT6[1, 0],
                        (1/np.sqrt(2))*MT6[5, 0]],
                       [(1/np.sqrt(2))*MT6[4, 0], (1/np.sqrt(2))*MT6[5, 0], MT6[2, 0]]])
 
 
-def MT6_TNPE(MT6):
+def MT6_TNPE(MT6: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Convert the 6xn Moment Tensor to the T,N,P vectors and the eigenvalues.
 
     Args
-        MT6: 6xn numpy matrix
+        MT6: 6xn numpy ndarray
 
     Returns
-        (numpy.matrix, numpy.matrix, numpy.matrix, numpy.array): tuple of T, N, P
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray): tuple of T, N, P
                         vectors and Eigenvalue array
     """
     if cmoment_tensor_conversion:
@@ -116,16 +117,16 @@ def MT6_TNPE(MT6):
     except Exception:
         MT6 = np.array([MT6]).T
         n = MT6.shape[1]
-    T = np.matrix(np.empty((3, n)))
-    N = np.matrix(np.empty((3, n)))
-    P = np.matrix(np.empty((3, n)))
+    T = np.empty((3, n))
+    N = np.empty((3, n))
+    P = np.empty((3, n))
     E = np.empty((3, n))
     for i in range(n):
         T[:, i], N[:, i], P[:, i], E[:, i] = MT33_TNPE(MT6_MT33(MT6[:, i]))
     return T, N, P, E
 
 
-def MT6_Tape(MT6):
+def MT6_Tape(MT6: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Convert the moment tensor 6-vector to the Tape parameters.
 
@@ -139,43 +140,50 @@ def MT6_Tape(MT6):
         sqrt(2)*Myz
 
     Args
-        MT6: numpy matrix six-vector
+        MT6: numpy ndarray six-vector
 
     Returns
-        (numpy.array, numpy.array, numpy.array, numpy.array, numpy.array): tuple of
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray): tuple of
                         gamma, delta, strike, cos(dip) and slip (angles in radians)
 
     """
-    if len(MT6.shape) > 1 and MT6.shape[1] > 1:
-        gamma = np.array(np.empty((MT6.shape[1],)))
-        delta = np.array(np.empty((MT6.shape[1],)))
-        kappa = np.array(np.empty((MT6.shape[1],)))
-        h = np.array(np.empty((MT6.shape[1],)))
-        sigma = np.array(np.empty((MT6.shape[1],)))
-        for i in range(MT6.shape[1]):
-            gamma[i], delta[i], kappa[i], h[i], sigma[i] = MT6_Tape(MT6[:, i])
+    MT6 = np.asarray(MT6)
+    if MT6.ndim > 1 and MT6.shape[1] > 1:
+        n = MT6.shape[1]
+        gamma = np.empty(n)
+        delta = np.empty(n)
+        kappa = np.empty(n)
+        h = np.empty(n)
+        sigma = np.empty(n)
+        for i in range(n):
+            g, d, k, hi, s = MT6_Tape(MT6[:, i])
+            gamma[i] = np.asarray(g).flat[0]
+            delta[i] = np.asarray(d).flat[0]
+            kappa[i] = np.asarray(k).flat[0]
+            h[i] = np.asarray(hi).flat[0]
+            sigma[i] = np.asarray(s).flat[0]
         return gamma, delta, kappa, h, sigma
     MT33 = MT6_MT33(MT6)
     T, N, P, E = MT33_TNPE(MT33)
     gamma, delta = E_GD(E)
     kappa, dip, sigma = TNP_SDR(T, N, P)
-    if np.abs(sigma) > np.pi/2:
+    if np.any(np.abs(sigma) > np.pi/2):
         kappa, dip, sigma = SDR_SDR(kappa, dip, sigma)
     h = np.cos(dip)
-    return (np.array(gamma).flatten(), np.array(delta).flatten(),
-            np.array(kappa).flatten(), np.array(h).flatten(),
-            np.array(sigma).flatten())
+    return (np.atleast_1d(gamma).flatten(), np.atleast_1d(delta).flatten(),
+            np.atleast_1d(kappa).flatten(), np.atleast_1d(h).flatten(),
+            np.atleast_1d(sigma).flatten())
 
 
-def MT33_TNPE(MT33):
+def MT33_TNPE(MT33: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Convert the 3x3 Moment Tensor to the T,N,P vectors and the eigenvalues.
 
     Args
-        MT33: 3x3 numpy matrix
+        MT33: 3x3 numpy ndarray
 
     Returns
-        (numpy.matrix, numpy.matrix, numpy.matrix, numpy.array): tuple of T, N, P
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray): tuple of T, N, P
                         vectors and Eigenvalue array
     """
     E, L = np.linalg.eig(MT33)
@@ -188,12 +196,12 @@ def MT33_TNPE(MT33):
     return (T, N, P, E)
 
 
-def MT33_SDR(MT33):
+def MT33_SDR(MT33: np.ndarray) -> tuple[float, float, float]:
     """
     Convert the 3x3 Moment Tensor to the strike, dip and rake.
 
     Args
-        MT33: 3x3 numpy matrix
+        MT33: 3x3 numpy ndarray
 
     Returns
         (float, float, float): tuple of strike, dip, rake angles in radians
@@ -203,26 +211,26 @@ def MT33_SDR(MT33):
     return FP_SDR(N1, N2)
 
 
-def MT33_GD(MT33):
+def MT33_GD(MT33: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert the 3x3 Moment Tensor to theTape parameterisation gamma and delta.
 
     Args
-        MT33: 3x3 numpy matrix
+        MT33: 3x3 numpy ndarray
 
     Returns
-        (numpy.array, numpy.array): tuple of gamma, delta
+        (numpy.ndarray, numpy.ndarray): tuple of gamma, delta
     """
     E, L = np.linalg.eig(MT33)
     return E_GD(E)
 
 
-def E_tk(E):
+def E_tk(E: np.ndarray) -> tuple[float, float]:
     """
     Convert the moment tensor eigenvalues to the Hudson tau, k parameters
 
     Args
-        E: indexable list/array (e.g numpy.array) of moment tensor eigenvalues
+        E: indexable list/array (e.g numpy.ndarray) of moment tensor eigenvalues
 
     Returns
         (float, float): tau, k  tuple
@@ -254,7 +262,7 @@ def E_tk(E):
     return tau, k
 
 
-def tk_uv(tau, k):
+def tk_uv(tau: float, k: float) -> tuple[float, float]:
     """
     Convert the Hudson tau, k parameters to the Hudson u, v parameters
 
@@ -301,12 +309,12 @@ def tk_uv(tau, k):
     return u, v
 
 
-def E_uv(E):
+def E_uv(E: np.ndarray) -> tuple[float, float]:
     """
     Convert the eigenvalues to the Hudson i, v parameters
 
     Args
-        E: indexable list/array (e.g numpy.array) of moment tensor eigenvalues
+        E: indexable list/array (e.g numpy.ndarray) of moment tensor eigenvalues
 
     Returns
         (float, float): u, v  tuple
@@ -314,7 +322,7 @@ def E_uv(E):
     return tk_uv(*E_tk(E))
 
 
-def E_GD(E):
+def E_GD(E: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert the eigenvalues to the Tape parameterisation gamma and delta.
 
@@ -322,7 +330,7 @@ def E_GD(E):
         E: array of eigenvalues
 
     Returns
-        (numpy.array, numpy.array): tuple of gamma, delta
+        (numpy.ndarray, numpy.ndarray): tuple of gamma, delta
 
     """
     if cmoment_tensor_conversion:
@@ -355,7 +363,7 @@ def E_GD(E):
     return gamma, delta
 
 
-def GD_basic_cdc(gamma, delta):
+def GD_basic_cdc(gamma: np.ndarray, delta: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert gamma, delta to basic crack+double-couple parameters
 
@@ -366,7 +374,7 @@ def GD_basic_cdc(gamma, delta):
         delta: numpy array of delta values
 
     Returns:
-        (numpy.array, numpy.array): tuple of alpha, poisson
+        (numpy.ndarray, numpy.ndarray): tuple of alpha, poisson
     """
 
     alpha = np.arccos(-np.sqrt(3)*np.tan(gamma))
@@ -375,14 +383,14 @@ def GD_basic_cdc(gamma, delta):
     return alpha, poisson
 
 
-def TNP_SDR(T, N, P):
+def TNP_SDR(T: np.ndarray, N: np.ndarray, P: np.ndarray) -> tuple[float, float, float]:
     """
     Convert the T,N,P vectors to the strike, dip and rake in radians
 
     Args
-        T: numpy matrix of T vectors.
-        N: numpy matrix of N vectors.
-        P: numpy matrix of P vectors.
+        T: numpy ndarray of T vectors.
+        N: numpy ndarray of N vectors.
+        P: numpy ndarray of P vectors.
 
     Returns
         (float, float, float): tuple of strike, dip and rake angles of fault plane in radians
@@ -399,60 +407,63 @@ def TNP_SDR(T, N, P):
     return FP_SDR(N1, N2)
 
 
-def TP_FP(T, P):
+def TP_FP(T: np.ndarray, P: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert the 3x3 Moment Tensor to the fault normal and slip vectors.
 
     Args
-        T: numpy matrix of T vectors.
-        P: numpy matrix of P vectors.
+        T: numpy ndarray of T vectors.
+        P: numpy ndarray of P vectors.
 
     Returns
-        (numpy.matrix, numpy.matrix): tuple of Normal and slip vectors
+        (numpy.ndarray, numpy.ndarray): tuple of Normal and slip vectors
     """
+    T = np.asarray(T)
+    P = np.asarray(P)
     if T.ndim == 1:
-        T = np.matrix(T)
+        T = np.atleast_2d(T)
     if P.ndim == 1:
-        P = np.matrix(P)
+        P = np.atleast_2d(P)
     if T.shape[0] != 3:
         T = T.T
     if P.shape[0] != 3:
         P = P.T
-    TP1 = T+P
-    TP2 = T-P
+    TP1 = T + P
+    TP2 = T - P
     N1 = (TP1)/np.sqrt(np.einsum('ij,ij->j', TP1, TP1))
     N2 = (TP2)/np.sqrt(np.einsum('ij,ij->j', TP2, TP2))
     return (N1, N2)
 
 
-def FP_SDR(normal, slip):
+def FP_SDR(normal: np.ndarray, slip: np.ndarray) -> tuple[float, float, float]:
     """
     Convert fault normal and slip to strike, dip and rake
 
     Coordinate system is North East Down.
 
     Args
-        normal: numpy matrix - Normal vector
-        slip: numpy matrix - Slip vector
+        normal: numpy ndarray - Normal vector
+        slip: numpy ndarray - Slip vector
 
 
     Returns
         (float, float, float): tuple of strike, dip and rake angles in radians
 
     """
-    if not isinstance(slip, np.matrixlib.defmatrix.matrix):
-        slip = slip/np.sqrt(np.sum(slip*slip, axis=0))
-    else:
-        # Do we need to replace this with einsum
-        slip = slip/np.sqrt(np.einsum('ij,ij->j', slip, slip))
-    if not isinstance(normal, np.matrixlib.defmatrix.matrix):
-        normal = normal/np.sqrt(np.sum(normal*normal, axis=0))
-    else:
-        normal = normal/np.sqrt(np.einsum('ij,ij->j', normal, normal))
+    slip = np.asarray(slip)
+    normal = np.asarray(normal)
+    if slip.ndim < 2:
+        slip = np.atleast_2d(slip)
+        if slip.shape[0] != 3:
+            slip = slip.T
+    slip = slip / np.sqrt(np.einsum('ij,ij->j', slip, slip))
+    if normal.ndim < 2:
+        normal = np.atleast_2d(normal)
+        if normal.shape[0] != 3:
+            normal = normal.T
+    normal = normal / np.sqrt(np.einsum('ij,ij->j', normal, normal))
     slip[:, np.array(normal[2, :] > 0).flatten()] *= -1
     normal[:, np.array(normal[2, :] > 0).flatten()] *= -1
-    normal = np.array(normal)
-    slip = np.array(slip)
     strike, dip = normal_SD(normal)
     rake = np.arctan2(-slip[2], slip[0]*normal[1]-slip[1]*normal[0])
     strike[dip > np.pi/2] += np.pi
@@ -464,7 +475,7 @@ def FP_SDR(normal, slip):
     return (np.array(strike).flatten(), np.array(dip).flatten(), np.array(rake).flatten())
 
 
-def basic_cdc_GD(alpha, poisson=0.25):
+def basic_cdc_GD(alpha: float, poisson: float = 0.25) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert alpha and poisson ratio to gamma and delta
 
@@ -479,7 +490,7 @@ def basic_cdc_GD(alpha, poisson=0.25):
         poisson:[0.25] Poisson ratio on the fault surface.
 
     Returns:
-        (numpy.array, numpy.array): tuple of gamma, delta
+        (numpy.ndarray, numpy.ndarray): tuple of gamma, delta
 
     """
     gamma = np.arctan((-1/np.sqrt(3.))*np.cos(alpha))
@@ -496,7 +507,7 @@ def basic_cdc_GD(alpha, poisson=0.25):
     return (gamma, delta)
 
 
-def GD_E(gamma, delta):
+def GD_E(gamma: np.ndarray, delta: np.ndarray) -> np.ndarray:
     """
     Convert the Tape parameterisation gamma and delta to the eigenvalues.
 
@@ -506,23 +517,23 @@ def GD_E(gamma, delta):
         delta: numpy array of delta values
 
     Returns
-        numpy.array: array of eigenvalues
+        numpy.ndarray: array of eigenvalues
 
     """
-    U = (1/np.sqrt(6))*np.matrix([[np.sqrt(3), 0, -np.sqrt(3)],
+    U = (1/np.sqrt(6))*np.array([[np.sqrt(3), 0, -np.sqrt(3)],
                                   [-1, 2, -1],
                                   [np.sqrt(2), np.sqrt(2), np.sqrt(2)]])
     gamma = np.array(gamma).flatten()
     delta = np.array(delta).flatten()
-    X = np.matrix([np.multiply(np.cos(gamma), np.sin((np.pi/2)-delta)),
+    X = np.array([np.multiply(np.cos(gamma), np.sin((np.pi/2)-delta)),
                    np.multiply(np.sin(gamma), np.sin((np.pi/2)-delta)),
                    np.cos((np.pi/2)-delta)]).T
     if X.shape[1] == 3:
         X = X.T
-    return np.array((U.T*X))
+    return np.array(U.T @ X)
 
 
-def SDR_TNP(strike, dip, rake):
+def SDR_TNP(strike: float, dip: float, rake: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Convert strike, dip  rake to TNP vectors
 
@@ -534,21 +545,21 @@ def SDR_TNP(strike, dip, rake):
         rake: float radians
 
     Returns
-        (numpy.matrix, numpy.matrix, numpy.matrix): tuple of T,N,P vectors.
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray): tuple of T,N,P vectors.
 
     """
     strike = np.array(strike).flatten()
     dip = np.array(dip).flatten()
     rake = np.array(rake).flatten()
-    N1 = np.matrix([(np.cos(strike)*np.cos(rake))+(np.sin(strike)*np.cos(dip)*np.sin(rake)),
+    N1 = np.array([(np.cos(strike)*np.cos(rake))+(np.sin(strike)*np.cos(dip)*np.sin(rake)),
                     (np.sin(strike)*np.cos(rake)) -
                     np.cos(strike)*np.cos(dip)*np.sin(rake),
                     -np.sin(dip)*np.sin(rake)])
-    N2 = np.matrix([-np.sin(strike)*np.sin(dip), np.cos(strike)*np.sin(dip), -np.cos(dip)])
+    N2 = np.array([-np.sin(strike)*np.sin(dip), np.cos(strike)*np.sin(dip), -np.cos(dip)])
     return FP_TNP(N1, N2)
 
 
-def SDR_SDR(strike, dip, rake):
+def SDR_SDR(strike: float, dip: float, rake: float) -> tuple[float, float, float]:
     """
     Convert strike, dip  rake to strike, dip  rake for other fault plane
 
@@ -588,28 +599,28 @@ def SDR_SDR(strike, dip, rake):
             return (s1, d1, r1)
 
 
-def FP_TNP(normal, slip):
+def FP_TNP(normal: np.ndarray, slip: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Convert fault normal and slip to TNP axes
 
     Coordinate system is North East Down.
 
     Args
-        normal: numpy matrix - normal vector
-        slip: numpy matrix - slip vector
+        normal: numpy ndarray - normal vector
+        slip: numpy ndarray - slip vector
 
     Returns
-        (numpy.matrix, numpy.matrix, numpy.matrix): tuple of T, N, P vectors
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray): tuple of T, N, P vectors
     """
     T = (normal+slip)
     T = T/np.sqrt(np.einsum('ij,ij->j', T, T))
     P = (normal-slip)
     P = P/np.sqrt(np.einsum('ij,ij->j', P, P))
-    N = np.matrix(-np.cross(T.T, P.T)).T
+    N = np.asarray(-np.cross(T.T, P.T)).T
     return (T, N, P)
 
 
-def SDSD_FP(strike1, dip1, strike2, dip2):
+def SDSD_FP(strike1: float, dip1: float, strike2: float, dip2: float) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert strike and dip pairs to fault normal and slip
 
@@ -622,22 +633,22 @@ def SDSD_FP(strike1, dip1, strike2, dip2):
         dip2: float dip  of fault plane 2 in radians
 
     Returns
-        (numpy.matrix, numpy.matrix): tuple of Normal and slip vectors
+        (numpy.ndarray, numpy.ndarray): tuple of Normal and slip vectors
     """
     strike1 = np.array(strike1).flatten()
     dip1 = np.array(dip1).flatten()
     strike2 = np.array(strike2).flatten()
     dip2 = np.array(dip2).flatten()
-    N1 = np.matrix([-np.sin(strike2)*np.sin(dip2),
+    N1 = np.array([-np.sin(strike2)*np.sin(dip2),
                     np.cos(strike2)*np.sin(dip2),
                     -np.cos(dip2)])
-    N2 = np.matrix([-np.sin(strike1)*np.sin(dip1),
+    N2 = np.array([-np.sin(strike1)*np.sin(dip1),
                     np.cos(strike1)*np.sin(dip1),
                     -np.cos(dip1)])
     return (N1, N2)
 
 
-def SDR_FP(strike, dip, rake):
+def SDR_FP(strike: float, dip: float, rake: float) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert the strike, dip  and rake in radians to the fault normal and slip.
 
@@ -647,13 +658,13 @@ def SDR_FP(strike, dip, rake):
         rake: float rake angle of fault plane  in radians
 
     Returns
-        (numpy.matrix, numpy.matrix): tuple of Normal and slip vectors
+        (numpy.ndarray, numpy.ndarray): tuple of Normal and slip vectors
     """
     T, N, P = SDR_TNP(strike, dip, rake)
     return TP_FP(T, P)
 
 
-def SDR_SDSD(strike, dip, rake):
+def SDR_SDSD(strike: float, dip: float, rake: float) -> tuple[float, float, float, float]:
     """
     Convert the strike, dip  and rake to the strike and dip pairs (all angles in radians).
 
@@ -669,14 +680,14 @@ def SDR_SDSD(strike, dip, rake):
     return FP_SDSD(N1, N2)
 
 
-def FP_SDSD(N1, N2):
+def FP_SDSD(N1: np.ndarray, N2: np.ndarray) -> tuple[float, float, float, float]:
     """
     Convert the the fault normal and slip vectors to the strike and dip pairs
     (all angles in radians).
 
     Args
-        Normal: numpy matrix - Normal vector
-        Slip: numpy matrix - Slip vector
+        Normal: numpy ndarray - Normal vector
+        Slip: numpy ndarray - Slip vector
 
     Returns
         (float, float, float, float): tuple of strike1, dip1, strike2, dip2 angles
@@ -687,7 +698,7 @@ def FP_SDSD(N1, N2):
     return (s1, d1, s2, d2)
 
 
-def Tape_MT33(gamma, delta, kappa, h, sigma, **kwargs):
+def Tape_MT33(gamma: float, delta: float, kappa: float, h: float, sigma: float, **kwargs) -> np.ndarray:
     """
     Convert Tape parameters to a 3x3 moment tensor
 
@@ -701,19 +712,19 @@ def Tape_MT33(gamma, delta, kappa, h, sigma, **kwargs):
         sigma: float, slip angle (takes values between -pi/2 and pi/2)
 
     Returns
-        numpy.matrix: 3x3 moment tensor
+        numpy.ndarray: 3x3 moment tensor
 
     """
     E = GD_E(gamma, delta)
     D = np.diag(E.flatten())
     T, N, P = SDR_TNP(kappa, np.arccos(h), sigma)
-    L = np.matrix(
+    L = np.array(
         [np.array(T).flatten(), np.array(N).flatten(), np.array(P).flatten()]).T
-    MT33 = L*D*L.T
+    MT33 = L @ D @ L.T
     return MT33
 
 
-def Tape_MT6(gamma, delta, kappa, h, sigma):
+def Tape_MT6(gamma: float, delta: float, kappa: float, h: float, sigma: float) -> np.ndarray:
     """
     Convert the Tape parameterisation to the moment tensor six-vectors.
 
@@ -727,7 +738,7 @@ def Tape_MT6(gamma, delta, kappa, h, sigma):
         sigma: Slip angle (takes values between -pi/2 and pi/2)
 
     Returns
-        np.array: Array of MT 6-vectors
+        np.ndarray: Array of MT 6-vectors
 
     """
     if cmoment_tensor_conversion:
@@ -754,7 +765,7 @@ def Tape_MT6(gamma, delta, kappa, h, sigma):
     return MT33_MT6(MT33)
 
 
-def Tape_TNPE(gamma, delta, kappa, h, sigma):
+def Tape_TNPE(gamma: float, delta: float, kappa: float, h: float, sigma: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Convert the Tape parameterisation to the T,N,P vectors and the eigenvalues.
 
@@ -768,7 +779,7 @@ def Tape_TNPE(gamma, delta, kappa, h, sigma):
         sigma: Slip angle (takes values between -pi/2 and pi/2)
 
     Returns
-        (numpy.matrix, numpy.matrix, numpy.matrix, numpy.array): T,N,P vectors
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray): T,N,P vectors
                 and Eigenvalues tuple
     """
     E = GD_E(gamma, delta)
@@ -776,25 +787,26 @@ def Tape_TNPE(gamma, delta, kappa, h, sigma):
     return (T, N, P, E)
 
 
-def normal_SD(normal):
+def normal_SD(normal: np.ndarray) -> tuple[float, float]:
     """
     Convert a plane normal to strike and dip
 
     Coordinate system is North East Down.
 
     Args
-        normal: numpy matrix - Normal vector
+        normal: numpy ndarray - Normal vector
 
 
     Returns
         (float, float): tuple of strike and dip angles in radians
     """
-    if not isinstance(normal, np.matrixlib.defmatrix.matrix):
-        normal = np.array(normal)/np.sqrt(np.sum(normal*normal, axis=0))
-    else:
-        normal = normal/np.sqrt(np.diag(normal.T*normal))
+    normal = np.asarray(normal)
+    if normal.ndim < 2:
+        normal = np.atleast_2d(normal)
+        if normal.shape[0] != 3:
+            normal = normal.T
+    normal = normal / np.sqrt(np.sum(normal * normal, axis=0))
     normal[:, np.array(normal[2, :] > 0).flatten()] *= -1
-    normal = np.array(normal)
     strike = np.arctan2(-normal[0], normal[1])
     dip = np.arctan2((normal[1]**2+normal[0]**2),
                      np.sqrt((normal[0]*normal[2])**2+(normal[1]*normal[2])**2))
@@ -802,7 +814,7 @@ def normal_SD(normal):
     return strike, dip
 
 
-def toa_vec(azimuth, plunge, radians=False):
+def toa_vec(azimuth: float, plunge: float, radians: bool = False) -> np.ndarray:
     """
     Convert the azimuth and plunge of a vector to a cartesian description of the vector
 
@@ -814,24 +826,19 @@ def toa_vec(azimuth, plunge, radians=False):
         radians: boolean, flag to use radians [default = False]
 
     Returns
-        np.matrix: vector
+        np.ndarray: vector
     """
     if not radians:
         azimuth = np.pi*np.array(azimuth)/180.
         plunge = np.pi*np.array(plunge)/180.
     if not isinstance(plunge, np.ndarray):
         plunge = np.array([plunge])
-    try:
-        return np.matrix([np.cos(azimuth)*np.sin(plunge),
-                          np.sin(azimuth)*np.sin(plunge),
-                          np.cos(plunge)])
-    except Exception:
-        return np.array([np.cos(azimuth)*np.sin(plunge),
-                         np.sin(azimuth)*np.sin(plunge),
-                         np.cos(plunge)])
+    return np.array([np.cos(azimuth)*np.sin(plunge),
+                     np.sin(azimuth)*np.sin(plunge),
+                     np.cos(plunge)])
 
 
-def output_convert(mts):
+def output_convert(mts: np.ndarray) -> dict[str, np.ndarray]:
     """
     Convert the moment tensors into several different parameterisations
 
@@ -869,17 +876,30 @@ def output_convert(mts):
     for i in range(mts.shape[1]):
         MT33 = MT6_MT33(mts[:, i])
         T, N, P, E = MT33_TNPE(MT33)
-        u[i], v[i] = tk_uv(*E_tk(E))
-        g[i], d[i] = E_GD(E)
-        k[i], dip, s[i] = TNP_SDR(T, N, P)
+        u_i, v_i = tk_uv(*E_tk(E))
+        u[i] = np.asarray(u_i).flat[0]
+        v[i] = np.asarray(v_i).flat[0]
+        g_i, d_i = E_GD(E)
+        g[i] = np.asarray(g_i).flat[0]
+        d[i] = np.asarray(d_i).flat[0]
+        k_i, dip_i, s_i = TNP_SDR(T, N, P)
+        k[i] = np.asarray(k_i).flat[0]
+        dip = np.asarray(dip_i).flat[0]
+        s[i] = np.asarray(s_i).flat[0]
         s1[i] = k[i]
         d1[i] = dip
         r1[i] = s[i]
 
         if np.abs(s[i]) > np.pi/2:
-            k[i], dip, s[i] = SDR_SDR(k[i], dip, s[i])
+            k_i, dip_i, s_i = SDR_SDR(k[i], dip, s[i])
+            k[i] = np.asarray(k_i).flat[0]
+            dip = np.asarray(dip_i).flat[0]
+            s[i] = np.asarray(s_i).flat[0]
         h[i] = np.cos(dip)
-        s2[i], d2[i], r2[i] = SDR_SDR(s1[i], d1[i], r1[i])
+        s2_i, d2_i, r2_i = SDR_SDR(s1[i], d1[i], r1[i])
+        s2[i] = np.asarray(s2_i).flat[0]
+        d2[i] = np.asarray(d2_i).flat[0]
+        r2[i] = np.asarray(r2_i).flat[0]
         s1[i] *= rad_cor
         d1[i] *= rad_cor
         r1[i] *= rad_cor
@@ -904,7 +924,7 @@ def output_convert(mts):
 
 
 # Bi-axes
-def isotropic_c(lambda_=1, mu=1, c=False):
+def isotropic_c(lambda_: float = 1, mu: float = 1, c: list | bool = False) -> list:
     """
     Calculate the isotropic stiffness tensor
 
@@ -953,7 +973,7 @@ def isotropic_c(lambda_=1, mu=1, c=False):
     return c
 
 
-def MT6_biaxes(MT6, c=isotropic_c(lambda_=1, mu=1)):
+def MT6_biaxes(MT6: np.ndarray, c: list = isotropic_c(lambda_=1, mu=1)) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Convert six vector to bi-axes
 
@@ -985,11 +1005,11 @@ def MT6_biaxes(MT6, c=isotropic_c(lambda_=1, mu=1)):
     stiffness tensor can be genereated using (isotropic_c)
 
     Args
-        MT6: numpy matrix Moment tensor 6-vector
+        MT6: numpy ndarray Moment tensor 6-vector
         c: list or numpy array of the 21 element input stiffness tensor
 
     Returns
-        (numpy.array, numpy.array, numpy.array): tuple of phi (bi-axes) vectors,
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray): tuple of phi (bi-axes) vectors,
                 explosion value and area_displacement value.
     """
     if isinstance(c, bool):
@@ -1045,7 +1065,7 @@ def MT6_biaxes(MT6, c=isotropic_c(lambda_=1, mu=1)):
     return phi, explosion, area_displacement
 
 
-def MT6c_D6(MT6, c=isotropic_c(lambda_=1, mu=1)):
+def MT6c_D6(MT6: np.ndarray, c: list = isotropic_c(lambda_=1, mu=1)) -> np.ndarray:
     """
     Convert the moment tensor 6-vector to the potency tensor.
     The 6-vector has the form::
@@ -1073,11 +1093,11 @@ def MT6c_D6(MT6, c=isotropic_c(lambda_=1, mu=1)):
     stiffness tensor can be genereated using (isotropic_c).
 
     Args
-        MT6: numpy matrix Moment tensor 6-vector
+        MT6: numpy ndarray Moment tensor 6-vector
         c: list or numpy array of the 21 element input stiffness tensor
 
     Returns
-        numpy.array: numpy array of the potency 6 vector (in the same ordering as the
+        numpy.ndarray: numpy array of the potency 6 vector (in the same ordering as the
                 moment tensor six vector)
 
     """
@@ -1089,15 +1109,15 @@ def MT6c_D6(MT6, c=isotropic_c(lambda_=1, mu=1)):
     else:
         logger.info(C_EXTENSION_FALLBACK_LOG_MSG)
     mtvoigt = MT6[np.array([0, 1, 2, 5, 4, 3])]
-    mtvoigt = np.matrix(mtvoigt)
+    mtvoigt = np.atleast_2d(np.asarray(mtvoigt))
     if mtvoigt.shape[1] == 6:
         mtvoigt = mtvoigt.T
     # Convert to voigt
-    dvoigt = np.linalg.solve(np.matrix(c21_cvoigt(c)), mtvoigt)
+    dvoigt = np.linalg.solve(np.asarray(c21_cvoigt(c)), mtvoigt)
     return dvoigt[np.array([0, 1, 2, 5, 4, 3])]
 
 
-def is_isotropic_c(c):
+def is_isotropic_c(c: list) -> bool:
     """
     Evaluate if an input stiffness tensor is isotropic
 
@@ -1137,7 +1157,7 @@ def is_isotropic_c(c):
             (abs(c[0]-c[1]-2*c[15]) < tol))
 
 
-def c21_cvoigt(c):
+def c21_cvoigt(c: list) -> np.ndarray:
     """
     Convert an input stiffness tensor to voigt form
 
@@ -1157,7 +1177,7 @@ def c21_cvoigt(c):
         c:  input list of stiffness parameters (21 required)
 
     Returns
-        numpy.array: voigt form of the stiffness tensor
+        numpy.ndarray: voigt form of the stiffness tensor
     """
     if cmoment_tensor_conversion:
         try:
@@ -1179,7 +1199,7 @@ def c21_cvoigt(c):
                       2*c[17], 2*c[19], 2*c[20]]])
 
 
-def c_norm(c):
+def c_norm(c: list) -> float:
     """
     Calculate norm of the stiffness tensor.
 

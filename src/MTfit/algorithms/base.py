@@ -14,8 +14,7 @@ Basic algorithm class for MTfit
 
 
 import logging
-import types
-import sys
+from typing import Any
 
 import numpy as np
 
@@ -40,7 +39,7 @@ except Exception:
 PRINT_N_ITERATIONS = 20
 
 
-class BaseAlgorithm(object):
+class BaseAlgorithm:
 
     """
     Base class for algorithms including the base methods required for forward
@@ -50,9 +49,9 @@ class BaseAlgorithm(object):
     # Returns zero for testing - should be set in __init__
     default_sampling_priors = {'6sphere_prior': _6sphere_prior}
 
-    def __init__(self, number_samples=10000, dc=False, quality_check=False,
-                 file_sample=False, file_safe=True, generate=False,
-                 *args, **kwargs):
+    def __init__(self, number_samples: int = 10000, dc: bool = False, quality_check: bool | float = False,
+                 file_sample: bool = False, file_safe: bool = True, generate: bool = False,
+                 *args, **kwargs) -> None:
         """
         BaseAlgorithm initialisation
 
@@ -92,7 +91,7 @@ class BaseAlgorithm(object):
         self._model = kwargs.get('sample_distribution', False)
         self.get_sampling_model(kwargs, file_sample, file_safe)
 
-    def get_sampling_model(self, kwargs, file_sample, file_safe):
+    def get_sampling_model(self, kwargs: dict, file_sample: bool, file_safe: bool) -> None:
         """Get the sampling model from the entry points"""
         if self._model:
             # Assume that prior is the correct form for the sampling (either
@@ -100,14 +99,12 @@ class BaseAlgorithm(object):
             model_names, model = get_extensions('MTfit.sample_distribution', {'clvd': self.random_clvd})
             try:
                 try:
-                    if sys.version_info.major > 3:
-                        self.random_model = getattr(self, model[self._model].__name__)
-                    else:
-                        self.random_model = getattr(self, model[self._model].func_name)
+                    self.random_model = getattr(self, model[self._model].__name__)
                 except AttributeError:
+                    import types
                     self.random_model = types.MethodType(model[self._model], self)
             except Exception:
-                logger.exception('Error setting prior: {}\n'.format(self._model))
+                logger.exception(f'Error setting prior: {self._model}\n')
                 self._model = False
         sampling = {'6sphere': _6sphere_random_mt}
 
@@ -129,17 +126,14 @@ class BaseAlgorithm(object):
         try:
             self._prior = sampling_prior[kwargs.get('sampling_prior', list(self.default_sampling_priors.keys())[0])]
         except Exception:
-            logger.exception('Error setting prior: {}, using default: {}\n'.format(
-                kwargs.get('sampling_prior', list(self.default_sampling_priors.keys())[0]),
-                list(self.default_sampling_priors.keys())[0]))
-            self._prior = sampling_prior[list(self.default_sampling_priors.keys())[0]]
+            default_key = list(self.default_sampling_priors.keys())[0]
+            requested_key = kwargs.get('sampling_prior', default_key)
+            logger.exception(f'Error setting prior: {requested_key}, using default: {default_key}\n')
+            self._prior = sampling_prior[default_key]
         try:
-            if sys.version_info.major > 2:
-                self.random_mt = getattr(self, sampling[kwargs.get('sampling', '6sphere')].__name__)
-            else:
-                self.random_mt = getattr(self, sampling[kwargs.get('sampling', '6sphere')].func_name)
-
+            self.random_mt = getattr(self, sampling[kwargs.get('sampling', '6sphere')].__name__)
         except AttributeError:
+            import types
             self.random_mt = types.MethodType(sampling[kwargs.get('sampling', '6sphere')], self)
         if file_sample:
             self.pdf_sample = FileSample(fname=kwargs.get('fid', 'MTfit_run'),
@@ -148,10 +142,10 @@ class BaseAlgorithm(object):
         else:
             self.pdf_sample = Sample(number_events=self.number_events, prior=self._prior)
 
-    def max_value(self):
+    def max_value(self) -> str:
         return 'BaseAlgorithm has no max_value'
 
-    def random_sample(self):
+    def random_sample(self) -> Any:
         """
         Return random samples
 
@@ -171,7 +165,7 @@ class BaseAlgorithm(object):
         else:
             return self.random_mt()
 
-    def output(self, normalise=True, convert=False, discard=10000):
+    def output(self, normalise: bool = True, convert: bool = False, discard: int = 10000) -> tuple[dict, str]:
         """
         Return the algorithm results for output.
 
@@ -189,7 +183,7 @@ class BaseAlgorithm(object):
         output.update({'total_number_samples': self.total_number_samples})
         return output, output_string
 
-    def iterate(self, result):
+    def iterate(self, result: dict) -> tuple[list, bool]:
         """
         Basic iteration function
 
@@ -207,7 +201,7 @@ class BaseAlgorithm(object):
         End = True
         return task, End
 
-    def initialise(self):
+    def initialise(self) -> tuple[list, bool]:
         """
         Basic initialisation function
 
@@ -222,7 +216,7 @@ class BaseAlgorithm(object):
         task = [1]
         return task, False
 
-    def random_dc(self, *args):
+    def random_dc(self, *args) -> np.ndarray:
         """
         Generate random double-couple  moment tensors (size 6, number_samples)
 
@@ -241,7 +235,7 @@ class BaseAlgorithm(object):
         dc_diag = np.array([[1/np.sqrt(2)], [0], [-1/np.sqrt(2)]])
         return self.random_type(dc_diag)
 
-    def random_clvd(self, *args):
+    def random_clvd(self, *args) -> np.ndarray:
         """
         Generate random CLVD moment tensors (size 6,number_samples)
 
@@ -264,7 +258,7 @@ class BaseAlgorithm(object):
         # Use random_type for DC eigenvalues
         return self.random_type(clvd_diag)
 
-    def random_type(self, diag):
+    def random_type(self, diag: np.ndarray) -> np.ndarray:
         """
         Generate random  moment tensors from a given set of eigenvalues.
 
@@ -282,7 +276,7 @@ class BaseAlgorithm(object):
         # Combine with eigenvalues
         return self.eigenvectors_mt_2_mt6(diag, a, b, c)
 
-    def random_orthogonal_eigenvectors(self):
+    def random_orthogonal_eigenvectors(self) -> list[np.ndarray]:
         """
         Generates random orthogonal eigenvectors.
 
@@ -315,7 +309,7 @@ class BaseAlgorithm(object):
         # Return list of vectors
         return [a, b, c]
 
-    def eigenvectors_mt_2_mt6(self, diag, a, b, c):
+    def eigenvectors_mt_2_mt6(self, diag: np.ndarray, a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
         """
         Converts eigenvectors and eigenvalues to moment tensor 6-vector.
 
@@ -337,16 +331,16 @@ class BaseAlgorithm(object):
         v1 = np.array([a[0, :], b[0, :], c[0, :]])
         v2 = np.array([a[1, :], b[1, :], c[1, :]])
         v3 = np.array([a[2, :], b[2, :], c[2, :]])
-        M = np.matrix([np.sum(v1*v1*diag, axis=0),  # M11
-                       np.sum(v2*v2*diag, axis=0),  # M22
-                       np.sum(v3*v3*diag, axis=0),  # M33
-                       np.sqrt(2)*np.sum(v1*v2*diag, axis=0),  # sqrt2*M12
-                       np.sqrt(2)*np.sum(v1*v3*diag, axis=0),  # sqrt2*M13
-                       np.sqrt(2)*np.sum(v2*v3*diag, axis=0)])  # sqrt2*M23
-        return np.matrix(M/np.sqrt(np.sum(np.multiply(M, M), axis=0)))
+        M = np.array([np.sum(v1*v1*diag, axis=0),  # M11
+                      np.sum(v2*v2*diag, axis=0),  # M22
+                      np.sum(v3*v3*diag, axis=0),  # M33
+                      np.sqrt(2)*np.sum(v1*v2*diag, axis=0),  # sqrt2*M12
+                      np.sqrt(2)*np.sum(v1*v3*diag, axis=0),  # sqrt2*M13
+                      np.sqrt(2)*np.sum(v2*v3*diag, axis=0)])  # sqrt2*M23
+        return np.array(M/np.sqrt(np.sum(np.multiply(M, M), axis=0)))
 
 
-def _6sphere_random_mt(self):
+def _6sphere_random_mt(self) -> np.ndarray:
     """
     Generate random moment tensors (size 6,number_samples)
 
@@ -368,4 +362,4 @@ def _6sphere_random_mt(self):
     # Reseed np.random and generate new random samples.
     np.random.seed()
     M = np.random.randn(6, ns)
-    return np.matrix(M/np.sqrt(np.sum(np.multiply(M, M), axis=0)))
+    return np.array(M/np.sqrt(np.sum(np.multiply(M, M), axis=0)))

@@ -23,10 +23,7 @@ import multiprocessing
 import traceback
 import logging
 import copy
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import pickle
 from math import ceil
 
 
@@ -68,14 +65,13 @@ except Exception:
     logger.exception('Error importing c extension')
     cprobability = False
 
-_MEMTEST = False
 _DEBUG = False
 _VERBOSITY = 0
 _CYTHON_TESTS = False
 _COMBINED_TESTS = False
 
 
-def memory_profile_test(memtest=_MEMTEST):
+def memory_profile_test(memtest=False):
     """
     Decorator for running memory profiler (memory_profiler module) to test memory requirements and bottlenecks.
     """
@@ -96,7 +92,7 @@ def memory_profile_test(memtest=_MEMTEST):
 #
 
 
-class ForwardTask(object):
+class ForwardTask:
     """
     Forward modelling task
 
@@ -150,7 +146,7 @@ class ForwardTask(object):
         if isinstance(self.mt, bool) and cprobability is not False:
             self.generate_samples = generate_samples
 
-    @memory_profile_test(_MEMTEST)
+    @memory_profile_test()
     def __call__(self):
         """
         Runs the ForwardTask and returns the result as a dictionary
@@ -221,7 +217,7 @@ class ForwardTask(object):
                         # Check if  any probabilities are non zero otherwise return
                         if not np.prod(ln_p_total.shape) or not ln_p_total.max() > -np.inf:
                             if not self._return_zero:
-                                return {'moment_tensors': np.matrix([]), 'ln_pdf': LnPDF(np.matrix([])), 'n': N}
+                                return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
                             return {'moment_tensors': self.mt, 'ln_pdf': LnPDF(-np.inf*np.ones(self.mt.shape[1])), 'n': N}
                         # Otherwise probability evaluation is complete so set return flag to True
                         _return = True
@@ -292,7 +288,7 @@ class ForwardTask(object):
                     # Check if  any probabilities are non zero otherwise return
                     if not ln_p_total.max() > -np.inf:
                         if not self._return_zero:
-                            return {'moment_tensors': np.matrix([]), 'ln_pdf': LnPDF(np.matrix([])), 'n': N}
+                            return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
                         if location_samples and self.marginalise:
                             # Return marginalised zero PDF
                             return {'moment_tensors': self.mt, 'ln_pdf': LnPDF(-np.inf*np.ones(self.mt.shape[1])), 'n': N}
@@ -349,7 +345,7 @@ class ForwardTask(object):
                             location_sample_multipliers = location_sample_multipliers.astype(np.float64, copy=False)
                             ln_p_total = cprobability.ln_multipliers(ln_p_total, location_sample_multipliers)
                         else:
-                            ln_p_total += np.log(np.matrix(self.location_sample_multipliers).T)  # Conversion to matrix and transpose to correct for list order to ln_p_total dimensions (0 is sample dimension)
+                            ln_p_total += np.log(np.array(self.location_sample_multipliers).reshape(-1, 1))  # Conversion to matrix and transpose to correct for list order to ln_p_total dimensions (0 is sample dimension)
                     # If there are location samples and the marginalise flag is set, then marginalise, trying to use Cython
                     if location_samples and self.marginalise:
                         ln_p_total = ln_marginalise(ln_p_total)
@@ -382,16 +378,16 @@ class ForwardTask(object):
                         ln_p_total = ln_p_total[:, ln_p_total.nonzero()]
                     return {'moment_tensors': self.mt, 'ln_pdf': LnPDF(ln_p_total), 'n': N}
                 else:
-                    return {'moment_tensors': np.matrix([]), 'ln_pdf': LnPDF(np.matrix([])), 'n': N}
+                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
             return False
         except Exception as e:
             # Overall error catch
             warnings.warn('Error in forward task:{}\n\nReturning no result and continuing [no action required].'.format(e), RuntimeWarning)
             traceback.print_exc()
-            return {'moment_tensors': np.matrix([]), 'ln_pdf': LnPDF(np.matrix([])), 'n': 0}
+            return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': 0}
 
 
-class McMCForwardTask(object):
+class McMCForwardTask:
     """
     Markov chain Monte Carlo Forward modelling task
 
@@ -472,7 +468,7 @@ class McMCForwardTask(object):
                 'location_sample_multipliers': self.location_sample_multipliers}
 
 
-class MultipleEventsForwardTask(object):
+class MultipleEventsForwardTask:
     """
     Multiple Events Forward modelling task
 
@@ -546,7 +542,7 @@ class MultipleEventsForwardTask(object):
         if self._relative and not self._combine and self._return_zero:
             self._combine = True
 
-    @memory_profile_test(_MEMTEST)
+    @memory_profile_test()
     def __call__(self):
         """
         Runs the MultipleEventsForwardTask and returns the result as a dictionary
@@ -557,7 +553,7 @@ class MultipleEventsForwardTask(object):
         # If combining outputs make a single ln_pdf else make a list of them
         if self._combine:
             # Assuming that location uncertainty matches for each event (i.e if samples used, event is still co-located...)
-            ln_p_total = np.matrix(np.zeros((self.location_sample_size, self.mts[0].shape[1])))
+            ln_p_total = np.zeros((self.location_sample_size, self.mts[0].shape[1]))
         else:
             ln_p_total = []
         # Set non-zero array
@@ -622,7 +618,7 @@ class MultipleEventsForwardTask(object):
             if not self._combine:
                 if not (ln_pdf > -np.inf).any() and self._relative and ((isinstance(self.a_relative_amplitude, list) and len(self.a_relative_amplitude)) or not isinstance(self.a_relative_amplitude, (bool, list))):
                     # in relative loop  and all zero prob
-                    return {'moment_tensors': np.matrix([]), 'ln_pdf': LnPDF(np.matrix([])), 'n': N}
+                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
                 ln_p_total.append(ln_pdf)
                 continue
             # all zero so breaking
@@ -634,7 +630,7 @@ class MultipleEventsForwardTask(object):
             if not (ln_p_total > -np.inf).any():
                 # return zeros
                 if not self._return_zero:
-                    return {'moment_tensors': np.matrix([]), 'ln_pdf': LnPDF(np.matrix([])), 'n': N}
+                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
                 return {'moment_tensors': self.mts, 'ln_pdf': ln_p_total, 'n': N, 'scale_factor': scale_factor}
             # Update mts
             if not self._return_zero:
@@ -660,7 +656,7 @@ class MultipleEventsForwardTask(object):
                 # Get fewest number of mts and set all non-zero mts to that
                 min_mts = min(non_zero)
                 if min_mts == 0:
-                    return {'moment_tensors': np.matrix([]), 'ln_pdf': LnPDF(np.matrix([])), 'n': N}
+                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
                 for i, ln_p in enumerate(ln_p_total):
                     if i == 0:
                         ln_p_t = ln_p[:, 0: min_mts]
@@ -714,7 +710,7 @@ class MultipleEventsForwardTask(object):
                                     location_sample_multipliers = location_sample_multipliers.astype(np.float64, copy=False)
                                     ln_p_amp_rat = cprobability.ln_multipliers(ln_p_amp_rat, location_sample_multipliers)
                                 else:
-                                    ln_p_amp_rat += np.log(np.matrix(self.location_sample_multipliers).T)
+                                    ln_p_amp_rat += np.log(np.array(self.location_sample_multipliers).reshape(-1, 1))
                             # Marginalise if marginalise_relative flag is True
                             if self.location_sample_size > 1 and self._marginalise_relative:
                                 ln_p_amp_rat = ln_marginalise(ln_p_amp_rat, _cython=cprobability is not False)
@@ -726,7 +722,7 @@ class MultipleEventsForwardTask(object):
                             # return zeros
                             if not (ln_p_total > -np.inf).any():
                                 if not self._return_zero:
-                                    return {'moment_tensors': np.matrix([]), 'ln_pdf': LnPDF(np.matrix([])), 'n': N}
+                                    return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
                                 return {'moment_tensors': self.mts, 'ln_pdf': ln_p_total, 'n': N}
                             # Update mts for non-zeros
                             if not self._return_zero:
@@ -773,7 +769,7 @@ class MultipleEventsForwardTask(object):
                                             location_sample_multipliers = location_sample_multipliers.astype(np.float64, copy=False)
                                             ln_p_extensions = cprobability.ln_multipliers(ln_p_ext, location_sample_multipliers)
                                         else:
-                                            ln_p_extensions += np.log(np.matrix(self.location_sample_multipliers).T)
+                                            ln_p_extensions += np.log(np.array(self.location_sample_multipliers).reshape(-1, 1))
                                     # Marginalise if marginalise_relative flag is True
                                     if self.location_sample_size > 1 and self._marginalise_relative:
                                         ln_p_extensions = ln_marginalise(ln_p_extensions, _cython=cprobability is not False)
@@ -784,7 +780,7 @@ class MultipleEventsForwardTask(object):
 
                                     if not (ln_p_total > -np.inf).any():
                                         if not self._return_zero:
-                                            return {'moment_tensors': np.matrix([]), 'ln_pdf': LnPDF(np.matrix([])), 'n': N}
+                                            return {'moment_tensors': np.array([]), 'ln_pdf': LnPDF(np.array([])), 'n': N}
                                         return {'moment_tensors': self.mts, 'ln_pdf': ln_p_total, 'n': N}
                                     # Update mts for non-zeros
                                     if not self._return_zero:
@@ -833,7 +829,7 @@ class MultipleEventsForwardTask(object):
                 extension_scale = {}
             p_total = np.exp(ln_p_total+ln_scale)
             # Marginalise
-            p_total = np.matrix(np.sum(p_total, 0))
+            p_total = np.sum(p_total, 0, keepdims=True)
             ln_p_total = np.log(p_total)-ln_scale
         elif self._relative:  # marginalise_relative is true
             if scale_factor.shape[0] == 1:
@@ -1032,7 +1028,7 @@ class MultipleEventsMcMCForwardTask(McMCForwardTask):
                 'location_sample_multipliers': self.location_sample_multipliers}
 
 
-class CombineMpiOutputTask(object):
+class CombineMpiOutputTask:
     """
     Task for combining MPI output
 
@@ -1107,7 +1103,7 @@ class CombineMpiOutputTask(object):
 #
 
 
-class Inversion(object):
+class Inversion:
     """
     Main Inversion object
 
@@ -1286,7 +1282,7 @@ class Inversion(object):
 
     """
 
-    @memory_profile_test(_MEMTEST)
+    @memory_profile_test()
     def __init__(self, data={}, data_file=False, location_pdf_file_path=False, algorithm='iterate', parallel=True, n=0, phy_mem=8, dc=False, **kwargs):
         """
         Initialisation of inversion object
@@ -1565,8 +1561,8 @@ class Inversion(object):
 
         Expected plugin type is to match a file extension and return the sample_records,sample_probability where sample records is a list of the sample records::
 
-        sample_records=[{'Name':['S001','S002',...],'Azimuth':np.matrix([[121.],[37.],...]),'TakeOffAngle':np.matrix([[88.],[12.],...])},
-         {'Name':['S001','S002',...],'Azimuth':np.matrix([[120.],[36.],...]),'TakeOffAngle':np.matrix([[87.],[11.],...])}]
+        sample_records=[{'Name':['S001','S002',...],'Azimuth':np.array([[121.],[37.],...]),'TakeOffAngle':np.array([[88.],[12.],...])},
+         {'Name':['S001','S002',...],'Azimuth':np.array([[120.],[36.],...]),'TakeOffAngle':np.array([[87.],[11.],...])}]
         sample_probability=[0.8,1.2,...]
 
 
@@ -1709,11 +1705,6 @@ class Inversion(object):
                 number_samples = 0.8*(nfloats-(self._number_workers+1)*(4*A+6*D))/((self._number_workers+1)*6*self.number_events+4*(self._number_workers+1)*self._max_data_size*number_location_samples*self.number_events)
         if self._MPI:
             number_samples /= 2
-        if self.parallel and not self._MPI and sys.version_info[:2] <= (2, 7, 4) and (number_samples*6*self.number_events*8*8 < 2**30):
-            # Check for pickle bug #13555 http://bugs.python.org/issue13555 which seems linked to multiprocessing issue #17560 http://bugs.python.org/issue17560
-            # cannot pickle files longer than 2**31 (32 bit encoding used for pickle length)
-            # Possible fix https://stackoverflow.com/questions/15118344/system-error-while-running-subprocesses-using-multiprocessing
-            number_samples = min([((2**30)/(6*8*8*self.number_events)), number_samples])
         # Bodge to prevent memory usage above limit
         number_samples /= 20
         # If estiamted total number of samples <1 raise an error.
@@ -2200,7 +2191,7 @@ class Inversion(object):
                 pass
             return False
 
-    @memory_profile_test(_MEMTEST)
+    @memory_profile_test()
     def _mcmc_forward(self, source_type='MT', **kwargs):
         """
         Markov chain Monte Carlo event forward function
@@ -2295,7 +2286,7 @@ class Inversion(object):
                     self._print('Output Error')
                     traceback.print_exc()
 
-    @memory_profile_test(_MEMTEST)
+    @memory_profile_test()
     def _mcmc_multiple_forward(self, source_type='MT', **kwargs):
         """
         Markov chain Monte Carlo event forward function for multiple event joint pdf
@@ -2417,7 +2408,7 @@ class Inversion(object):
         except Exception:
             traceback.print_exc()
 
-    @memory_profile_test(_MEMTEST)
+    @memory_profile_test()
     def _random_sampling_forward(self, source_type='MT', return_zero=False):
         """
         Monte Carlo random sampling event forward function
@@ -2581,7 +2572,7 @@ class Inversion(object):
             except Exception:
                 traceback.print_exc()
 
-    @memory_profile_test(_MEMTEST)
+    @memory_profile_test()
     def _random_sampling_multiple_forward(self, source_type='MT', **kwargs):
         """
         Monte Carlo event forward function for multiple event joint pdf
@@ -3221,7 +3212,7 @@ def station_angles(stations, phase, radians=False):
 
     Args
         stations: station dictionary (format is the station component of the data dictionary (MTfit.inversion.Inversion docstrings))
-        phase: 'P','SH','SV' - the component for which to calculate the station angles, can be a ratio separated with a \.
+        phase: 'P','SH','SV' - the component for which to calculate the station angles, can be a ratio separated with a /.
         radians:[False] Boolean flag to set radians true or false
 
     Returns
@@ -3229,12 +3220,12 @@ def station_angles(stations, phase, radians=False):
     """
     # Get azimuth and takeoff angles
     try:
-        azimuth = np.matrix(stations['Azimuth'])
-        takeoff_angle = np.matrix(stations['TakeOffAngle'])
+        azimuth = np.atleast_2d(np.asarray(stations['Azimuth'], dtype=np.float64))
+        takeoff_angle = np.atleast_2d(np.asarray(stations['TakeOffAngle'], dtype=np.float64))
     except Exception:
-        azimuth = stations[0]  # stations is angle tuple
-        takeoff_angle = stations[1]
-    # Transpose to correct orientation if necessary
+        azimuth = np.atleast_2d(np.asarray(stations[0], dtype=np.float64))  # stations is angle tuple
+        takeoff_angle = np.atleast_2d(np.asarray(stations[1], dtype=np.float64))
+    # Transpose to correct orientation if necessary (ensure column vectors)
     if azimuth.shape[0] < azimuth.shape[1]:
         azimuth = azimuth.T
     if takeoff_angle.shape[0] < takeoff_angle.shape[1]:
@@ -3244,14 +3235,11 @@ def station_angles(stations, phase, radians=False):
         azimuth = azimuth*np.pi/180
     if not radians:
         takeoff_angle = takeoff_angle*np.pi/180
-    # Set arrays
-    azimuth = np.array(azimuth)
-    takeoff_angle = np.array(takeoff_angle)
     # Get phase
     phase = phase.lower().rstrip('q')
     # Calculate angles
     if phase.lower() == 'p':
-        return np.matrix(np.array([
+        return np.squeeze(np.array([
         # Mxx
                          np.cos(azimuth)*np.cos(azimuth)*np.sin(takeoff_angle)*np.sin(takeoff_angle),
         # Myy
@@ -3265,7 +3253,7 @@ def station_angles(stations, phase, radians=False):
         # sqrt(2)*Myz
                          (np.sqrt(2))*np.sin(azimuth)*np.cos(takeoff_angle)*np.sin(takeoff_angle)]).T)
     elif phase.lower() == 'sh':
-        return np.matrix(np.array([
+        return np.squeeze(np.array([
         # Mxx
                          -np.sin(azimuth)*np.cos(azimuth)*np.sin(takeoff_angle),
         # Myy
@@ -3279,7 +3267,7 @@ def station_angles(stations, phase, radians=False):
         # sqrt(2)*Myz
                          (1/np.sqrt(2))*np.cos(azimuth)*np.cos(takeoff_angle)]).T)
     elif phase.lower() == 'sv':
-        return np.matrix(np.array([
+        return np.squeeze(np.array([
         # Mxx
                          np.cos(azimuth)*np.cos(azimuth)*np.sin(takeoff_angle)*np.cos(takeoff_angle),
         # Myy
@@ -3322,7 +3310,7 @@ def _polarity_misfit_check(polarity, azimuth, takeoffangle, phase, mt):
     # If polarity exists then check model polarities vs observed polarities
     if polarity != 0:
         a_station = station_angles({'Azimuth': [azimuth], 'TakeOffAngle': [takeoffangle]}, phase)
-        model_polarity = float(a_station*mt)
+        model_polarity = np.asarray(a_station @ mt).flat[0]
         return model_polarity*polarity <= 0
     return False
 

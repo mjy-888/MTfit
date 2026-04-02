@@ -5,7 +5,7 @@ probability.py
 Probability module for MTfit, handles all probability calculations and
 contains the base LnPDF class for acting on probabilities.
 
-LnPDF object acts as a wrapper around a numpy matrix, allowing some
+LnPDF object acts as a wrapper around a 2D numpy ndarray, allowing some
 additional pdf specific operations.
 """
 
@@ -17,6 +17,8 @@ additional pdf specific operations.
 # Applications for commercial use should be made to Schlumberger or the University of Cambridge.
 
 
+from __future__ import annotations
+
 import warnings
 import gc
 import sys
@@ -24,6 +26,7 @@ import operator
 import logging
 
 import numpy as np
+from numpy.typing import ArrayLike
 from scipy.stats import norm as gaussian
 from scipy.stats import beta
 from scipy.special import erf
@@ -41,9 +44,6 @@ except Exception:
     logger.exception('Error importing c extension')
     cprobability = None
 
-# Set to prevent numpy warnings
-np.seterr(divide='print', invalid='print')
-
 # Set flags for running with/without the c library
 
 # Flag for testing Cython based C library functions even if they would be skipped
@@ -56,7 +56,7 @@ _SMALL_NUMBER = 0.000000000000000000000001
 # TODO - tidy and refactor code to avoid duplication
 
 
-def _6sphere_prior(g, d):
+def _6sphere_prior(g: np.ndarray, d: np.ndarray) -> float:
     """
     6-sphere prior
 
@@ -69,7 +69,13 @@ def _6sphere_prior(g, d):
     return 1.
 
 
-def polarity_ln_pdf(a, mt, sigma, incorrect_polarity_probability=0.0, _use_c=None):
+def polarity_ln_pdf(
+    a: np.ndarray,
+    mt: np.ndarray,
+    sigma: np.ndarray,
+    incorrect_polarity_probability: float | np.ndarray = 0.0,
+    _use_c: bool | None = None,
+) -> np.ndarray:
     """
     Calculate the probability of a positive polarity
 
@@ -178,7 +184,14 @@ def polarity_ln_pdf(a, mt, sigma, incorrect_polarity_probability=0.0, _use_c=Non
     return ln_p
 
 
-def polarity_probability_ln_pdf(a, mt, positive_probability, negative_probability, incorrect_polarity_probability=0.0, _use_c=None):
+def polarity_probability_ln_pdf(
+    a: np.ndarray,
+    mt: np.ndarray,
+    positive_probability: float | np.ndarray,
+    negative_probability: float | np.ndarray,
+    incorrect_polarity_probability: float | np.ndarray = 0.0,
+    _use_c: bool | None = None,
+) -> np.ndarray:
     """
     Calculate the probability of a given theoretical amplitude giving an
     observed polarity probability.
@@ -296,7 +309,15 @@ def polarity_probability_ln_pdf(a, mt, positive_probability, negative_probabilit
     return ln_p
 
 
-def amplitude_ratio_ln_pdf(ratio, mt, a_x, a_y, percentage_error_x, percentage_error_y, _use_c=None):
+def amplitude_ratio_ln_pdf(
+    ratio: np.ndarray,
+    mt: np.ndarray,
+    a_x: np.ndarray,
+    a_y: np.ndarray,
+    percentage_error_x: np.ndarray,
+    percentage_error_y: np.ndarray,
+    _use_c: bool | None = None,
+) -> np.ndarray:
     """
     Calculate the probability of a given theoretical amplitude ratio giving
     an observed ratio
@@ -401,7 +422,17 @@ def amplitude_ratio_ln_pdf(ratio, mt, a_x, a_y, percentage_error_x, percentage_e
     return ln_p
 
 
-def relative_amplitude_ratio_ln_pdf(x_1, x_2, mt_1, mt_2, a_1, a_2, percentage_error_1, percentage_error_2, _use_c=None):
+def relative_amplitude_ratio_ln_pdf(
+    x_1: np.ndarray,
+    x_2: np.ndarray,
+    mt_1: np.ndarray,
+    mt_2: np.ndarray,
+    a_1: np.ndarray,
+    a_2: np.ndarray,
+    percentage_error_1: np.ndarray,
+    percentage_error_2: np.ndarray,
+    _use_c: bool | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Calculate the probability of a given theoretical relative amplitude
     ratio giving an observed ratio.
@@ -525,7 +556,13 @@ def relative_amplitude_ratio_ln_pdf(x_1, x_2, mt_1, mt_2, a_1, a_2, percentage_e
     return ln_p, scale, scale_uncertainty
 
 
-def scale_estimator(observed_ratio, mu_x, mu_y, percentage_error_x, percentage_error_y):
+def scale_estimator(
+    observed_ratio: np.ndarray,
+    mu_x: np.ndarray,
+    mu_y: np.ndarray,
+    percentage_error_x: np.ndarray,
+    percentage_error_y: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Estimate the scale factor between the two events given the observed_ratio
     and theoretical ratios.
@@ -592,7 +629,7 @@ def scale_estimator(observed_ratio, mu_x, mu_y, percentage_error_x, percentage_e
     return combine_mu(mu, s)
 
 
-def combine_mu(mu, s):
+def combine_mu(mu: np.ndarray, s: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Combine the mean and standard deviations over stations
 
@@ -623,7 +660,11 @@ def combine_mu(mu, s):
 # Supporting PDF functions
 
 
-def gaussian_pdf(x, mu, sigma):
+def gaussian_pdf(
+    x: float | np.ndarray,
+    mu: float | np.ndarray,
+    sigma: float | np.ndarray,
+) -> float | np.ndarray:
     """
     Calculate the Gaussian probability
 
@@ -654,7 +695,11 @@ def gaussian_pdf(x, mu, sigma):
     return gaussian.pdf(x, loc=mu, scale=sigma)
 
 
-def gaussian_cdf(x, mu, sigma):
+def gaussian_cdf(
+    x: float | np.ndarray,
+    mu: float | np.ndarray,
+    sigma: float | np.ndarray,
+) -> float | np.ndarray:
     """
     Calculate the Gaussian Cumulative Distribution Function
 
@@ -680,7 +725,14 @@ def gaussian_cdf(x, mu, sigma):
     return gaussian.cdf(x, loc=mu, scale=sigma)
 
 
-def ratio_pdf(z, mu_x, mu_y, sigma_x, sigma_y, corr=0):
+def ratio_pdf(
+    z: float | np.ndarray,
+    mu_x: float | np.ndarray,
+    mu_y: float | np.ndarray,
+    sigma_x: float | np.ndarray,
+    sigma_y: float | np.ndarray,
+    corr: float = 0,
+) -> float | np.ndarray:
     """
     Calculate the Ratio Probability
 
@@ -705,48 +757,48 @@ def ratio_pdf(z, mu_x, mu_y, sigma_x, sigma_y, corr=0):
         float/np.array of probabilities
 
     """
-    # Set to prevent numpy warnings
-    np.seterr(divide='ignore', invalid='ignore')
-    # Expand parameters
-    if isinstance(mu_x, np.ndarray) and mu_x.ndim == 3:
-        if isinstance(mu_y, np.ndarray) and mu_y.ndim == 2:
-            mu_y = np.expand_dims(mu_y, 1)
-    if isinstance(mu_y, np.ndarray) and mu_y.ndim == 3:
-        if isinstance(mu_x, np.ndarray) and mu_x.ndim == 2:
-            mu_x = np.expand_dims(mu_x, 1)
-        if isinstance(z, np.ndarray) and z.ndim == 2:
-            z = np.expand_dims(z, 1)
-        if isinstance(sigma_x, np.ndarray) and sigma_x.ndim == 2:
-            sigma_x = np.expand_dims(sigma_x, 1)
-        if isinstance(sigma_y, np.ndarray) and sigma_y.ndim == 2:
-            sigma_y = np.expand_dims(sigma_y, 1)
-    # Calculate some coefficients
-    z_2 = np.multiply(z, z)
-    sigma_x_2 = np.multiply(sigma_x, sigma_x)
-    sigma_xy = np.multiply(sigma_x, sigma_y)
-    sigma_y_2 = np.multiply(sigma_y, sigma_y)
-    mu_x_2 = np.multiply(mu_x, mu_x)
-    if corr > 0:
-        a = np.sqrt(np.divide(z_2, sigma_x_2) - 2*corr*np.divide(z, sigma_xy) + 1/sigma_y_2)
-    else:
-        a = np.sqrt(np.divide(z_2, sigma_x_2) + 1/sigma_y_2)
-    a_2 = np.multiply(a, a)
-    b = np.divide(np.multiply(mu_x, z), sigma_x_2) - (corr*np.divide(sigma_x_2, sigma_xy)) + \
-        np.divide(mu_y, sigma_y_2)
-    c = np.divide(mu_x_2, sigma_x_2) + \
-        np.divide(np.multiply(mu_y, mu_y), sigma_y_2)
-    if corr > 0:
-        c -= (2*corr*np.divide(np.multiply(mu_x, mu_y), sigma_xy))
-    d = np.exp(np.divide((np.multiply(b, b)-np.multiply(c, a_2)),
-                         (2 * (1-corr*corr) * a_2)))
-    p = np.divide(np.multiply(b, d),
-                  (np.sqrt(2*np.pi) * np.multiply(sigma_xy, np.multiply(a, a_2))))
-    p = np.multiply(p,
-                    (gaussian_cdf(np.divide(b, (np.sqrt(1-corr*corr) * a)), 0, 1) -
-                     gaussian_cdf(np.divide(-b, (np.sqrt(1-corr*corr) * a)), 0, 1))
-                    )
-    p += np.multiply(np.sqrt(1-corr*corr) / (np.pi*np.multiply(sigma_xy, a_2)),
-                     np.exp(-c / (2*(1-corr*corr))))
+    # Suppress numpy warnings locally for expected divide-by-zero
+    with np.errstate(divide='ignore', invalid='ignore'):
+        # Expand parameters
+        if isinstance(mu_x, np.ndarray) and mu_x.ndim == 3:
+            if isinstance(mu_y, np.ndarray) and mu_y.ndim == 2:
+                mu_y = np.expand_dims(mu_y, 1)
+        if isinstance(mu_y, np.ndarray) and mu_y.ndim == 3:
+            if isinstance(mu_x, np.ndarray) and mu_x.ndim == 2:
+                mu_x = np.expand_dims(mu_x, 1)
+            if isinstance(z, np.ndarray) and z.ndim == 2:
+                z = np.expand_dims(z, 1)
+            if isinstance(sigma_x, np.ndarray) and sigma_x.ndim == 2:
+                sigma_x = np.expand_dims(sigma_x, 1)
+            if isinstance(sigma_y, np.ndarray) and sigma_y.ndim == 2:
+                sigma_y = np.expand_dims(sigma_y, 1)
+        # Calculate some coefficients
+        z_2 = np.multiply(z, z)
+        sigma_x_2 = np.multiply(sigma_x, sigma_x)
+        sigma_xy = np.multiply(sigma_x, sigma_y)
+        sigma_y_2 = np.multiply(sigma_y, sigma_y)
+        mu_x_2 = np.multiply(mu_x, mu_x)
+        if corr > 0:
+            a = np.sqrt(np.divide(z_2, sigma_x_2) - 2*corr*np.divide(z, sigma_xy) + 1/sigma_y_2)
+        else:
+            a = np.sqrt(np.divide(z_2, sigma_x_2) + 1/sigma_y_2)
+        a_2 = np.multiply(a, a)
+        b = np.divide(np.multiply(mu_x, z), sigma_x_2) - (corr*np.divide(sigma_x_2, sigma_xy)) + \
+            np.divide(mu_y, sigma_y_2)
+        c = np.divide(mu_x_2, sigma_x_2) + \
+            np.divide(np.multiply(mu_y, mu_y), sigma_y_2)
+        if corr > 0:
+            c -= (2*corr*np.divide(np.multiply(mu_x, mu_y), sigma_xy))
+        d = np.exp(np.divide((np.multiply(b, b)-np.multiply(c, a_2)),
+                             (2 * (1-corr*corr) * a_2)))
+        p = np.divide(np.multiply(b, d),
+                      (np.sqrt(2*np.pi) * np.multiply(sigma_xy, np.multiply(a, a_2))))
+        p = np.multiply(p,
+                        (gaussian_cdf(np.divide(b, (np.sqrt(1-corr*corr) * a)), 0, 1) -
+                         gaussian_cdf(np.divide(-b, (np.sqrt(1-corr*corr) * a)), 0, 1))
+                        )
+        p += np.multiply(np.sqrt(1-corr*corr) / (np.pi*np.multiply(sigma_xy, a_2)),
+                         np.exp(-c / (2*(1-corr*corr))))
     if isinstance(p, np.ndarray):
         p[np.isnan(p)] = 0
     # Clear arrays and force a garbage collection to free up memory
@@ -763,7 +815,7 @@ def ratio_pdf(z, mu_x, mu_y, sigma_x, sigma_y, corr=0):
     return p
 
 
-def beta_pdf(x, a, b):
+def beta_pdf(x: float | np.ndarray, a: float | np.ndarray, b: float | np.ndarray) -> np.ndarray:
     """
     Calculate the Beta Probability
 
@@ -782,7 +834,7 @@ def beta_pdf(x, a, b):
     return beta.pdf(x, a, b)
 
 
-def heaviside(x):
+def heaviside(x: float | np.ndarray) -> float | np.ndarray:
     """
     Calculate the heaviside step function.
 
@@ -800,7 +852,11 @@ def heaviside(x):
     return 0.5*(np.sign(x) + 1)
 
 
-def dkl(ln_probability_p, ln_probability_q, dV=1.0):
+def dkl(
+    ln_probability_p: LnPDF | np.ndarray,
+    ln_probability_q: LnPDF | np.ndarray,
+    dV: float = 1.0,
+) -> float:
     """
     Calculate the Kullback-Liebler divergence for two distributions, p
     and q
@@ -845,7 +901,7 @@ def dkl(ln_probability_p, ln_probability_q, dV=1.0):
                   ln_probability_q[ind]*probability_p[ind]) * dV
 
 
-def ln_marginalise(ln_pdf, axis=0, dV=1.0):
+def ln_marginalise(ln_pdf: np.ndarray | LnPDF, axis: int = 0, dV: float = 1.0) -> np.ndarray:
     """
     Marginalise the pdf from the log pdf input
 
@@ -893,7 +949,7 @@ def ln_marginalise(ln_pdf, axis=0, dV=1.0):
     return result
 
 
-def ln_normalise(ln_pdf, dV=1):
+def ln_normalise(ln_pdf: np.ndarray, dV: float = 1) -> np.ndarray:
     """
     Normalise the pdf the pdf from the log pdf input.
 
@@ -901,7 +957,7 @@ def ln_normalise(ln_pdf, dV=1):
     only proportional to the normalised distribution.
 
     Args
-        pdf: Object that can be multiplied by dV (numpy array/matrix or PDF object)
+        pdf: Object that can be multiplied by dV (numpy array or PDF object)
 
     Optional Args
         dV: float - volume element in normalisation, default value is
@@ -940,7 +996,7 @@ def ln_normalise(ln_pdf, dV=1):
     return ln_pdf - ln_n
 
 
-def model_probabilities(*args):
+def model_probabilities(*args: float) -> tuple[float, ...]:
     """
     Calculate the model probabilities for a discrete set of models using the
     ln_bayesian_evidences, provided as args.
@@ -970,7 +1026,7 @@ def model_probabilities(*args):
     return tuple(output_model_probabilities)
 
 
-def dkl_estimate(ln_pdf, V, N):
+def dkl_estimate(ln_pdf: LnPDF | np.ndarray, V: float, N: int) -> float:
     """
     Calculate the Kullback-Leibeler divergence for the ln_pdf from the
     prior distribution.
@@ -1006,28 +1062,35 @@ def dkl_estimate(ln_pdf, V, N):
     return np.sum(np.array(ln_pdf)*np.array(pdf) + np.array(pdf)*np.log(V), -1)*dV
 
 
-class LnPDF(object):
+class LnPDF:
 
     """
     LnPDF object, to allow arithmetic operations on the pdf
 
     A simple object containing a pdf and several methods for acting on the pdf.
-    _ln_pdf is a numpy matrix containing the natural logarithm of the pdf
+    _ln_pdf is a 2D numpy ndarray containing the natural logarithm of the pdf
     """
 
-    def __init__(self, ln_pdf=None, pdf=None, dV=1, *args, **kwargs):
+    def __init__(
+        self,
+        ln_pdf: ArrayLike | None = None,
+        pdf: ArrayLike | None = None,
+        dV: float = 1,
+        *args,
+        **kwargs,
+    ) -> None:
         """LnPDF Initialisation
 
         Initialises the LnPDF object.
 
         Optional Args
-            ln_pdf:[None] numpy array/matrix or list containing log pdf samples
-            pdf:[None] numpy array/matrix or list containing pdf samples
+            ln_pdf:[None] numpy array or list containing log pdf samples
+            pdf:[None] numpy array or list containing pdf samples
             dV:[1] default volume element for normalisation
         """
         # Possibly good to add initialisation size arg for LnPDF,
         # initSize=(1,1)
-        self._ln_pdf = np.matrix([])
+        self._ln_pdf: np.ndarray = np.empty((1, 0))
         if ln_pdf is not None:
             self._set_ln_pdf(ln_pdf)
         elif pdf is not None:
@@ -1039,20 +1102,20 @@ class LnPDF(object):
         else:
             self._set_dv(1)
 
-    def __getstate__(self):
+    def __getstate__(self) -> tuple[np.ndarray, float]:
         return self._ln_pdf, self.dV
 
-    def __setstate__(self, ln_pdf, dV):
+    def __setstate__(self, ln_pdf: np.ndarray, dV: float) -> None:
         self._set_ln_pdf(ln_pdf)
         self._set_dv(dV)
 
-    def __getattr__(self, key):
+    def __getattr__(self, key: str):
         """x.__getattr__(y) <==> x.y"""
         # Handles cases not picked up by __getattribute__
         if key == 'shape':
             return self._ln_pdf.shape
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Return the length of ln_pdf
 
@@ -1064,7 +1127,7 @@ class LnPDF(object):
             return self.shape[-1]
         return 1
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """x.__repr__() <==> repr(x)"""
         return self._ln_pdf.__repr__()
 
@@ -1072,19 +1135,11 @@ class LnPDF(object):
         """x.__getitem__(index) <==> x[index]"""
         return self._ln_pdf.__getitem__(index)
 
-    def __getslice__(self, i, j):
-        """x.__getslice__(i, j) <==> x[i:j]"""
-        return self._ln_pdf.__getslice__(i, j)
-
-    def __setitem__(self, index, val):
+    def __setitem__(self, index, val) -> None:
         """x.__setitem__(index, val) <==> x[index] = val"""
         return self._ln_pdf.__setitem__(index, val)
 
-    def __setslice__(self, i, j, val):
-        """x.__setslice__(i, j, val) <==> x[i, j] = val"""
-        return self._ln_pdf.__setslice__(i, j, val)
-
-    def _cmp(self, other, operator_func):
+    def _cmp(self, other: LnPDF | ArrayLike, operator_func) -> np.ndarray:
         """
         Base comparison function.
 
@@ -1093,47 +1148,47 @@ class LnPDF(object):
             operator_func: func - function from the operator module to compare using
 
         Returns:
-            boolean: result of the comparison
+            np.ndarray: result of the comparison
         """
         if isinstance(other, self.__class__):
             return operator_func(self._ln_pdf, other._ln_pdf)
         else:
             return operator_func(self._ln_pdf, other)
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> np.ndarray:
         """x.__lt__(y) <==> x < y"""
         return self._cmp(other, operator.__lt__)
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> np.ndarray:
         """x.__gt__(y) <==> x > y"""
         return self._cmp(other, operator.__gt__)
 
-    def __le__(self, other):
+    def __le__(self, other) -> np.ndarray:
         """x.__le__(y) <==> x <= y"""
         return self._cmp(other, operator.__le__)
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> np.ndarray:
         """x.__ge__(y) <==> x >= y"""
         return self._cmp(other, operator.__ge__)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> np.ndarray:
         """x.__eq__(y) <==> x == y"""
         return self._cmp(other, operator.__eq__)
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> np.ndarray:
         """x.__ne__(y) <==> x != y"""
         return self._cmp(other, operator.__ne__)
 
-    def _arithmetic(self, other, arithmetic_func):
+    def _arithmetic(self, other: LnPDF | ArrayLike, arithmetic_func) -> LnPDF:
         """
-        Base comparison function.
+        Base arithmetic function.
 
         Args
-            other: object - object for comparison
-            operator_func: func - function from the operator module to compare using
+            other: object - object for arithmetic operation
+            arithmetic_func: func - function from the operator module or numpy
 
         Returns:
-            boolean: result of the comparison
+            LnPDF: result of the arithmetic operation
         """
         if isinstance(other, self.__class__):
             if self.dV == other.dV:
@@ -1144,51 +1199,43 @@ class LnPDF(object):
         else:
             return self.__class__(ln_pdf=arithmetic_func(self._ln_pdf, other), dV=self.dV)
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> LnPDF:
         """x.__mul__(y) <==> x*y"""
         return self._arithmetic(other, np.multiply)
 
-    def __div__(self, other):
-        """x.__div__(y) <==> x/y"""
+    def __truediv__(self, other) -> LnPDF:
+        """x.__truediv__(y) <==> x/y"""
         return self._arithmetic(other, np.divide)
 
-    def __truediv__(self, other):
-        """x.__div__(y) <==> x/y"""
-        return self.__div__(other)
-
-    def __add__(self, other):
+    def __add__(self, other) -> LnPDF:
         """x.__add__(y) <==> x+y"""
         return self._arithmetic(other, operator.__add__)
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> LnPDF:
         """x.__sub__(y) <==> x-y"""
         return self._arithmetic(other, operator.__sub__)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other) -> LnPDF:
         """x.__rsub__(y) <==> y-x"""
         return (self-other)*-1
 
-    def __radd__(self, other):
+    def __radd__(self, other) -> LnPDF:
         """x.__radd__(y) <==> y+x"""
         return (self+other)
 
-    def __rmul__(self, other):
+    def __rmul__(self, other) -> LnPDF:
         """x.__rmul__(y) <==> y*x"""
         return self*other
 
-    def __rdiv__(self, other):
-        """x.__rdiv__(2) <==> 2/x"""
+    def __rtruediv__(self, other) -> LnPDF:
+        """x.__rtruediv__(2) <==> 2/x"""
         return LnPDF(ln_pdf=(other/self._ln_pdf), dV=self.dV)
 
-    def __rtruediv__(self, other):
-        """x.__rdiv__(2) <==> 2/x"""
-        return self.__rdiv__(other)
-
-    def __abs__(self):
+    def __abs__(self) -> LnPDF:
         """x.__abs__() <==> abs(x)"""
         return LnPDF(ln_pdf=np.abs(self._ln_pdf), dV=self.dV)
 
-    def __float__(self):
+    def __float__(self) -> float:
         """
         Convert pdf to float
 
@@ -1199,9 +1246,9 @@ class LnPDF(object):
             TypeError: array not length 1 so cannot be converted to a scalar.
 
         """
-        return float(self._ln_pdf)
+        return float(self._ln_pdf.flat[0])
 
-    def argmax(self, axis=1):
+    def argmax(self, axis: int = 1) -> np.ndarray:
         """
         Return the index of maximum value over an axis
 
@@ -1220,7 +1267,7 @@ class LnPDF(object):
             return self.marginalise().argmax(0).flatten()
         return self._ln_pdf.argmax(axis)
 
-    def max(self, axis=1):
+    def max(self, axis: int = 1) -> float | np.ndarray:
         """Return the maximum values over a given axis
 
         Returns the maximum values from the LnPDF over the given axis.
@@ -1239,19 +1286,19 @@ class LnPDF(object):
         axis = min(self._ln_pdf.ndim-1, axis)
         if self._ln_pdf.ndim > 1 and axis == -1:
             return np.exp(self.marginalise().max()).flatten()
-        return float(np.exp(self._ln_pdf.max(axis)))
+        return np.exp(self._ln_pdf.max(axis)).item()
 
-    def _set_dv(self, dV):
+    def _set_dv(self, dV: float) -> None:
         """Private Function to set dV value"""
         self.dV = dV
 
-    def _set_ln_pdf(self, ln_pdf):
+    def _set_ln_pdf(self, ln_pdf: ArrayLike | LnPDF) -> None:
         """Private Function to set _ln_pdf value"""
         if isinstance(ln_pdf, self.__class__):
             ln_pdf = ln_pdf._ln_pdf
-        self._ln_pdf = np.matrix(ln_pdf)
+        self._ln_pdf = np.atleast_2d(np.array(ln_pdf, copy=True))
 
-    def output(self, normalise=True):
+    def output(self, normalise: bool = True) -> LnPDF:
         """
         Return the marginalised pdf for outputting.
 
@@ -1263,7 +1310,7 @@ class LnPDF(object):
             return self.marginalise().normalise()
         return self.marginalise()
 
-    def exp(self):
+    def exp(self) -> np.ndarray:
         if cprobability:
             try:
                 return cprobability.ln_exp(self._ln_pdf)
@@ -1273,7 +1320,7 @@ class LnPDF(object):
             logger.info(C_EXTENSION_FALLBACK_LOG_MSG)
         return np.exp(self._ln_pdf)
 
-    def nonzero(self, discard=100000., n_samples=0):
+    def nonzero(self, discard: float = 100000., n_samples: int = 0) -> np.ndarray:
         """
         Return the non-zero indices of the pdf
 
@@ -1292,7 +1339,7 @@ class LnPDF(object):
             m_val = max(ln_pdf) - np.log(discard*n_samples)
         return np.nonzero(1*(ln_pdf > m_val))[0]
 
-    def normalise(self, dV=False):
+    def normalise(self, dV: float | bool = False) -> LnPDF:
         """
         Normalise the pdf object
 
@@ -1308,7 +1355,7 @@ class LnPDF(object):
         new._ln_pdf = ln_normalise(self._ln_pdf, self.dV)
         return new
 
-    def marginalise(self, axis=0, dV=False):
+    def marginalise(self, axis: int = 0, dV: float | bool = False) -> LnPDF:
         """
         Marginalise the pdf object over a given axis
 
@@ -1325,7 +1372,7 @@ class LnPDF(object):
         new._ln_pdf = ln_marginalise(self._ln_pdf, axis=axis, dV=self.dV)
         return new
 
-    def append(self, other, axis=1):
+    def append(self, other: LnPDF | np.ndarray, axis: int = 1) -> None:
         """
         Append values to pdf
 

@@ -13,7 +13,9 @@ Command line argument parser code for MTfit
 #
 # Applications for commercial use should be made to Schlumberger or the University of Cambridge.
 
-import optparse
+from __future__ import annotations
+
+import argparse
 import textwrap
 import glob
 import os
@@ -21,13 +23,8 @@ import sys
 import multiprocessing
 import subprocess
 import logging
-
-try:
-    # Check if argparse present
-    import argparse
-    _ARGPARSE = True
-except ImportError:
-    _ARGPARSE = False
+from pathlib import Path
+from typing import Any
 # Test flag for running qsub flags in test
 try:
     # python module for cluster job submission using qsub.
@@ -60,153 +57,91 @@ def get_details_json():
     return _get_details_json()
 
 
-if _ARGPARSE:
-    class ArgparseIndentedHelpFormatterWithNewLines(argparse.RawDescriptionHelpFormatter):
-
-        """
-        argparse help formatted with new lines
-
-        Formats the argparse help with newlines.
-        """
-
-        def _format_action(self, action):
-            """Formats the action with newlines. Adapted from base function."""
-            # determine the required width and the entry label
-            help_position = min(self._action_max_length + 2,
-                                self._max_help_position)
-            help_width = self._width - help_position
-            action_width = help_position - self._current_indent - 2
-            action_header = self._format_action_invocation(action)
-
-            # no help; start on same line and add a final newline
-            if not action.help:
-                tup = self._current_indent, '', action_header
-                action_header = '%*s%s\n' % tup
-
-            # short action name; start on the same line and pad two spaces
-            elif len(action_header) <= action_width:
-                tup = self._current_indent, '', action_width, action_header
-                action_header = '%*s%-*s  ' % tup
-                indent_first = 0
-
-            # long action name; start on the next line
-            else:
-                tup = self._current_indent, '', action_header
-                action_header = '%*s%s\n' % tup
-                indent_first = help_position
-
-            # collect the pieces of the action help
-            parts = [action_header]
-            # if there was help for the action, add lines of help text
-            if action.help:
-                help_text = self._expand_help(action)
-                help_lines = []
-                for para in help_text.split("\n"):
-                    if not len(textwrap.wrap(para, help_width)):
-                        help_lines.extend(' ')
-                    else:
-                        help_lines.extend(textwrap.wrap(para, help_width))
-
-                help_lines.extend(' ')
-                help_lines.extend(' ')
-                parts.append('%*s%s\n' % (indent_first, '', help_lines[0]))
-                for line in help_lines[1:]:
-                    parts.append('%*s%s\n' % (help_position, '', line))
-
-            # or add a newline if the description doesn't end with one
-            elif not action_header.endswith('\n'):
-                parts.append('\n')
-
-            # if there are any sub-actions, add their help as well
-            for subaction in self._iter_indented_subactions(action):
-                parts.append(self._format_action(subaction))
-
-            # return a single string
-            return self._join_parts(parts)
-
-        def _format_action_invocation(self, action):
-            result = super(ArgparseIndentedHelpFormatterWithNewLines, self)._format_action_invocation(action)
-            if len(result) > self._width+5-2:
-                checked = []
-                ind = 0
-                while ind < len(result):
-                    if len(result)-ind <= self._width+5-2:
-                        checked.append('  '+result[ind:].lstrip(' '))
-                        break
-
-                    checked.append(
-                        '  '+result[ind:ind+result[ind:ind+self._width].rfind(', -')+1].lstrip(' '))
-                    ind = ind+result[ind:ind+self._width].rfind(', -')+1
-                checked[0] = checked[0].lstrip(' ')
-                if len(checked[-1]) > self._current_indent:
-                    checked.append('')
-                result = '\n'.join(checked)
-            return result
-
-
-class OptparseIndentedHelpFormatterWithNewLines(optparse.IndentedHelpFormatter):
+class ArgparseIndentedHelpFormatterWithNewLines(argparse.RawDescriptionHelpFormatter):
 
     """
-    optparse help formatted with new lines
+    argparse help formatted with new lines
 
-    Formats the optparse help with newlines.
+    Formats the argparse help with newlines.
     """
 
-    def format_description(self, description):
-        """Format the description with newlines. Adapted from base function."""
-        if not description:
-            return ""
-        desc_width = self.width - self.current_indent
-        indent = " "*self.current_indent
-    # the above is still the same
-        bits = description.split('\n')
-        formatted_bits = [
-            textwrap.fill(bit,
-                          desc_width,
-                          initial_indent=indent,
-                          subsequent_indent=indent)
-            for bit in bits]
-        result = "\n".join(formatted_bits) + "\n"
-        return result
+    def _format_action(self, action):
+        """Formats the action with newlines. Adapted from base function."""
+        # determine the required width and the entry label
+        help_position = min(self._action_max_length + 2,
+                            self._max_help_position)
+        help_width = self._width - help_position
+        action_width = help_position - self._current_indent - 2
+        action_header = self._format_action_invocation(action)
 
-    def format_option(self, option):
-        """Format the option with newlines. Adapted from base function."""
-        result = []
-        opts = self.option_strings[option]
-        opt_width = self.help_position - self.current_indent - 2
-        if len(opts) > opt_width:
-            opts = "%*s%s\n" % (self.current_indent, "", opts)
-            indent_first = self.help_position
-        else:  # start help on same line as opts
-            opts = "%*s%-*s  " % (self.current_indent, "", opt_width, opts)
+        # no help; start on same line and add a final newline
+        if not action.help:
+            action_header = f"{'':{self._current_indent}}{action_header}\n"
+
+        # short action name; start on the same line and pad two spaces
+        elif len(action_header) <= action_width:
+            action_header = f"{'':{self._current_indent}}{action_header:{action_width}}  "
             indent_first = 0
-        result.append(opts)
-        if option.help:
-            help_text = self.expand_default(option)
-        # Everything is the same up through here
+
+        # long action name; start on the next line
+        else:
+            action_header = f"{'':{self._current_indent}}{action_header}\n"
+            indent_first = help_position
+
+        # collect the pieces of the action help
+        parts = [action_header]
+        # if there was help for the action, add lines of help text
+        if action.help:
+            help_text = self._expand_help(action)
             help_lines = []
             for para in help_text.split("\n"):
-                if not len(textwrap.wrap(para, self.help_width)):
+                if not len(textwrap.wrap(para, help_width)):
                     help_lines.extend(' ')
                 else:
-                    help_lines.extend(textwrap.wrap(para, self.help_width))
+                    help_lines.extend(textwrap.wrap(para, help_width))
+
             help_lines.extend(' ')
             help_lines.extend(' ')
-        # Everything is the same after here
-            result.append("%*s%s\n" % (
-                indent_first, "", help_lines[0]))
-            result.extend(["%*s%s\n" % (self.help_position, "", line)
-                           for line in help_lines[1:]])
-        elif opts[-1] != "\n":
-            result.append("\n")
-        return "".join(result)
+            parts.append(f"{'':{indent_first}}{help_lines[0]}\n")
+            for line in help_lines[1:]:
+                parts.append(f"{'':{help_position}}{line}\n")
+
+        # or add a newline if the description doesn't end with one
+        elif not action_header.endswith('\n'):
+            parts.append('\n')
+
+        # if there are any sub-actions, add their help as well
+        for subaction in self._iter_indented_subactions(action):
+            parts.append(self._format_action(subaction))
+
+        # return a single string
+        return self._join_parts(parts)
+
+    def _format_action_invocation(self, action):
+        result = super()._format_action_invocation(action)
+        if len(result) > self._width+5-2:
+            checked = []
+            ind = 0
+            while ind < len(result):
+                if len(result)-ind <= self._width+5-2:
+                    checked.append('  '+result[ind:].lstrip(' '))
+                    break
+
+                checked.append(
+                    '  '+result[ind:ind+result[ind:ind+self._width].rfind(', -')+1].lstrip(' '))
+                ind = ind+result[ind:ind+self._width].rfind(', -')+1
+            checked[0] = checked[0].lstrip(' ')
+            if len(checked[-1]) > self._current_indent:
+                checked.append('')
+            result = '\n'.join(checked)
+        return result
 
 
-def get_MTfit_defaults(test=False, extension_defaults={}, extension_default_types={}):
+def get_MTfit_defaults(test: bool = False, extension_defaults: dict[str, Any] = {}, extension_default_types: dict[str, Any] = {}) -> dict[str, Any]:
     return _get_env_defaults(test, extension_defaults, extension_default_types, "MTfit")
 
 
-def get_MTplot_defaults(test=False, extension_defaults={}, extension_default_types={}):
+def get_MTplot_defaults(test: bool = False, extension_defaults: dict[str, Any] = {}, extension_default_types: dict[str, Any] = {}) -> dict[str, Any]:
     return _get_env_defaults(test, extension_defaults, extension_default_types, "MTplot")
 
 
@@ -231,10 +166,7 @@ def _get_env_defaults(test=False, extension_defaults={}, extension_default_types
         MTfit_flag = True
     default_files = []
 
-    if 'win32' in sys.platform:
-        home_defaults = os.environ['HOMEPATH']+os.path.sep+defaults_fname
-    else:
-        home_defaults = os.environ['HOME']+os.path.sep+defaults_fname
+    home_defaults = str(Path.home() / defaults_fname)
     if os.path.exists(home_defaults):
         default_files.append(home_defaults)
     if env_variable in os.environ.keys():
@@ -308,7 +240,7 @@ def _get_env_defaults(test=False, extension_defaults={}, extension_default_types
 #
 
 
-def log(string):
+def log(string: str) -> None:
     """MPI print function"""
     if os.environ.__contains__('OMPI_COMM_WORLD_RANK'):
         if int(os.environ['OMPI_COMM_WORLD_RANK']) == 0:
@@ -317,7 +249,7 @@ def log(string):
         logging.info(string)
 
 
-def lower_string(input_string):
+def lower_string(input_string: str) -> str:
     """
     Convert string to lower TestCase
 
@@ -332,7 +264,7 @@ def lower_string(input_string):
     return input_string.lower()
 
 
-def check_path(input_string):
+def check_path(input_string: str) -> str | list[str]:
     """
     Check if the input string is a path, if * wildcard  present, checks the path using glob.glob.
 
@@ -361,10 +293,7 @@ def check_path(input_string):
         return [os.path.abspath(u) for u in glob.glob(os.path.abspath(os.path.split(input_string)[0])+os.path.sep+os.path.split(input_string)[1])]
     elif input_string and '*' not in input_string and os.path.exists(os.path.abspath(input_string)):
         return os.path.abspath(input_string)
-    if _ARGPARSE:
-        raise argparse.ArgumentTypeError('Path: "'+input_string+'" does not exist')
-    else:
-        raise ValueError('Path: "'+input_string+'" does not exist')
+    raise argparse.ArgumentTypeError(f'Path: "{input_string}" does not exist')
 
 
 def _data_file_search(data_path='./', data_extension='inv', angle_extension='scatangle'):
@@ -441,7 +370,7 @@ def _MTfit_argparser(input_args=None, test=False):
     """
     Return arguments parsed from command line
 
-    Creates a command line argument parser (using argparse if present otherwise optparse (python <=2.6))
+    Creates a command line argument parser (using argparse)
     and parses the command line arguments (or input_args if provided as a list). Contains some help formatter classes.
 
     Args
@@ -465,9 +394,6 @@ def _MTfit_argparser(input_args=None, test=False):
 
 
 
-    """
-    # optparse parser description extra
-    optparse_description = """Arguments are set as below, syntax is -dTest.i or --datafile=Test.i
     """
     # argparse parser description extra
     argparse_description = """Arguments are set as below, syntax is -dTest.i or -d Test.i
@@ -520,17 +446,17 @@ def _MTfit_argparser(input_args=None, test=False):
 
     The data file is a pickled python dictionary of the form:
       {'DataType':{'Stations':{'Name':['STA1','STA2',...],
-        'Azimuth':np.matrix([[190],[40],...]),
-        'TakeOffAngle':np.matrix([[70],[40],...])},
-        'Measured':np.matrix([[1],[-1],...]),
-        'Error':np.matrix([[0.01],[0.02],...])}}
+        'Azimuth':np.array([[190],[40],...]),
+        'TakeOffAngle':np.array([[70],[40],...])},
+        'Measured':np.array([[1],[-1],...]),
+        'Error':np.array([[0.01],[0.02],...])}}
 
     e.g.:
       {'P/SHRMSAmplitudeRatio':{'Stations':{'Name':['S0649',"S0162"],
         'Azimuth':np.array([90.0,270.0]),
         'TakeOffAngle':np.array([30.0,60.0])},
-        'Measured':np.matrix([[1],[-1]]),
-        'Error':np.matrix([[ 0.001,0.02],[ 0.001,0.001]])}}
+        'Measured':np.array([[1],[-1]]),
+        'Error':np.array([[ 0.001,0.02],[ 0.001,0.001]])}}
 
     Or a CSV file with events split by blank lines, a header line showing which row corresponds to which information (default is as shown here),
     UID and data-type information stored in the first column,
@@ -717,96 +643,42 @@ def _MTfit_argparser(input_args=None, test=False):
         dict(flags=["--relative_loop", "--relative-loop", "--relativeloop", "--loop"], default=defaults['relative_loop'], action='store_true',
              help='Loop over independent non-zero samples randomly to construct joint rather than joint samples', dest='relative_loop')
     ]
-    if _ARGPARSE:
-        parser = argparse.ArgumentParser(prog='MTfit', description=description+argparse_description, formatter_class=ArgparseIndentedHelpFormatterWithNewLines)
-        parser.add_argument('data_file', type=check_path, help=data_file_arg_help, nargs="?")
-        for arg in arguments:
-            kwargs = {key: value for (key, value) in arg.items() if key != 'flags'}
-            parser.add_argument(*arg['flags'], **kwargs)
-        for (name, extension) in cmd_opts.items():
-            group = parser.add_argument_group(name.capitalize(), description="\nCommands for the extension "+name)
-            (group, extension_parser_check) = extension(group, _ARGPARSE, defaults)
-            extension_parser_checks.append(extension_parser_check)
-        if _PYQSUB:
-            group = parser.add_argument_group('Cluster', description="\nCommands for using MTfit on a cluster environment using qsub/PBS")
-            group = pyqsub.parser_group(module_name='MTfit', group=group, default_nodes=defaults['nodes'], default_ppn=defaults['ppn'], default_pmem=defaults['pmem'],
-                                        default_walltime=defaults['walltime'], default_queue=defaults['queue'], default_email_options=defaults['email_options'],
-                                        default_email=defaults['email'])
-        for option in parser._actions:
-            if len(option.option_strings):
-                i = 0
-                while i < len(option.option_strings) and '--' not in option.option_strings[i]:
-                    i += 1
-                options_map[option.dest] = option.option_strings[i]
-        # For testing
-        if input_args is not None:
-            options = parser.parse_args(input_args)
-        else:
-            options = parser.parse_args()
-        options = vars(options)
-        options['parallel'] = not options.pop('singlethread')
-        if not options['data_file'] and not options['DATAFILE']:
-            if not options['_mpi_call']:
-                log("Data file not provided, using current directory.")
-            options['data_file'] = os.path.abspath('./')
-        elif options['data_file'] and options['DATAFILE']:
-            parser.error("Multiple data files specified.")
-        elif options['DATAFILE']:
-            options['data_file'] = options['DATAFILE']
-        options.pop('DATAFILE')
+    parser = argparse.ArgumentParser(prog='MTfit', description=description+argparse_description, formatter_class=ArgparseIndentedHelpFormatterWithNewLines)
+    parser.add_argument('data_file', type=check_path, help=data_file_arg_help, nargs="?")
+    for arg in arguments:
+        kwargs = {key: value for (key, value) in arg.items() if key != 'flags'}
+        parser.add_argument(*arg['flags'], **kwargs)
+    for (name, extension) in cmd_opts.items():
+        group = parser.add_argument_group(name.capitalize(), description="\nCommands for the extension "+name)
+        (group, extension_parser_check) = extension(group, True, defaults)
+        extension_parser_checks.append(extension_parser_check)
+    if _PYQSUB:
+        group = parser.add_argument_group('Cluster', description="\nCommands for using MTfit on a cluster environment using qsub/PBS")
+        group = pyqsub.parser_group(module_name='MTfit', group=group, default_nodes=defaults['nodes'], default_ppn=defaults['ppn'], default_pmem=defaults['pmem'],
+                                    default_walltime=defaults['walltime'], default_queue=defaults['queue'], default_email_options=defaults['email_options'],
+                                    default_email=defaults['email'])
+    for option in parser._actions:
+        if len(option.option_strings):
+            i = 0
+            while i < len(option.option_strings) and '--' not in option.option_strings[i]:
+                i += 1
+            options_map[option.dest] = option.option_strings[i]
+    # For testing
+    if input_args is not None:
+        options = parser.parse_args(input_args)
     else:
-        parser = optparse.OptionParser(prog='MTfit', description=description+optparse_description, formatter=OptparseIndentedHelpFormatterWithNewLines(), version="%(prog)s "+__version__, usage="%prog [options]\nUse -h to get more information")
-        for arg in arguments:
-            kwargs = {
-                key: value for (key, value) in arg.items() if key != 'flags'}
-            parser.add_option(*arg['flags'], **kwargs)
-        for (name, extension) in cmd_opts.items():
-            group = optparse.OptionGroup(
-                parser, name, description="\nCommands for the extension "+name)
-            (group, extension_parser_check) = extension(
-                group, _ARGPARSE, defaults)
-            parser.add_option_group(group)
-            extension_parser_checks.append(extension_parser_check)
-        if _PYQSUB:
-            group = optparse.OptionGroup(
-                parser, 'Cluster', description="\nCommands for using MTfit on a cluster environment using qsub/PBS")
-            group = pyqsub.parser_group(module_name='MTfit', group=group, default_nodes=defaults['nodes'], default_ppn=defaults['ppn'], default_pmem=defaults[
-                                        'pmem'], default_walltime=defaults['walltime'], default_queue=defaults['queue'], default_email_options=defaults['email_options'], default_email=defaults['email'])
-            parser.add_option_group(group)
-        for option in parser.option_list:
-            options_map[option.dest] = option.get_opt_string()
-        if input_args and len(input_args):
-            (options, args) = parser.parse_args(input_args)
-        else:
-            (options, args) = parser.parse_args()
-        options = vars(options)
-        options['parallel'] = not options.pop('singlethread')
-        options['data_file'] = False
-        if len(args):
-            options['data_file'] = args[0]
-
-        if not options['data_file'] and not options['DATAFILE']:
-            if not options['_mpi_call']:
-                log("Data file not provided, using current directory.")
-            options['data_file'] = os.path.abspath('./')
-        elif options['data_file'] and options['DATAFILE']:
-            parser.error("Multiple data files specified.")
-        elif options['DATAFILE']:
-            options['data_file'] = options['DATAFILE']
-        options.pop('DATAFILE')
-        if isinstance(options['quality_check'], list) and len(options['quality_check']):
-            options['quality_check'] = float(options['quality_check'][0])
-        elif isinstance(options['quality_check'], list):
-            options['quality_check'] = None
-        try:
-            options['data_file'] = check_path(options['data_file'])
-        except ValueError:
-            if not options['bin_scatangle']:
-                parser.error('Data file: "{}" does not exist'.format(options['data_file']))
-        try:
-            options['location_pdf_file_path'] = check_path(options['location_pdf_file_path'])
-        except ValueError:
-            parser.error('Angle Scatter file path: "{}" does not exist'.format(options['location_pdf_file_path']))
+        options = parser.parse_args()
+    options = vars(options)
+    options['parallel'] = not options.pop('singlethread')
+    if not options['data_file'] and not options['DATAFILE']:
+        if not options['_mpi_call']:
+            log("Data file not provided, using current directory.")
+        options['data_file'] = os.path.abspath('./')
+    elif options['data_file'] and options['DATAFILE']:
+        parser.error("Multiple data files specified.")
+    elif options['DATAFILE']:
+        options['data_file'] = options['DATAFILE']
+    options.pop('DATAFILE')
     # Check sampling_priors
     if not options['sampling_prior']:
         options.pop('sampling_prior')
@@ -826,7 +698,7 @@ def _MTfit_argparser(input_args=None, test=False):
     return parser, options, options_map, defaults, flags
 
 
-def MTfit_parser(input_args=False, test=False):
+def MTfit_parser(input_args: list[str] | bool = False, test: bool = False) -> tuple[dict[str, Any], dict[str, str]]:
     """
     Parses the command line arguments using _argparser and handles and returns the options
 
@@ -1094,7 +966,7 @@ def _MTplot_argparser(input_args=[], test=False):
     """
     Returns arguments parsed from command line
 
-    Creates a command line argument parser (using argparse if present otherwise optparse (python <=2.6))
+    Creates a command line argument parser (using argparse)
     and parses the command line arguments (or input_args if provided as a list). Contains some help formatter classes.
 
     Args
@@ -1113,9 +985,6 @@ def _MTplot_argparser(input_args=[], test=False):
     MTPlot is the moment tensor plotting code linked to the MTfit moment tensor inversion code.
 
 
-    """
-    # optparse parser description extra
-    optparse_description = """Arguments are set as below, syntax is -dTest.i or --datafile=Test.i
     """
     # argparse parser description extra
     argparse_description = """Arguments are set as below, syntax is -dTest.i or -d Test.i
@@ -1180,51 +1049,28 @@ def _MTplot_argparser(input_args=[], test=False):
         dict(flags=["--version"], action="version",
              version="%(prog)s from MTfit "+__version__),
     ]
-    if _ARGPARSE:
-        parser = argparse.ArgumentParser(
-            prog='MTplot', description=description+argparse_description, formatter_class=ArgparseIndentedHelpFormatterWithNewLines)
-        parser.add_argument(
-            'data_file', type=str, help="Data file to use for plotting, optional but must be specified either as a positional argument or as an optional argument (see -d below)", nargs="?")
+    parser = argparse.ArgumentParser(
+        prog='MTplot', description=description+argparse_description, formatter_class=ArgparseIndentedHelpFormatterWithNewLines)
+    parser.add_argument(
+        'data_file', type=str, help="Data file to use for plotting, optional but must be specified either as a positional argument or as an optional argument (see -d below)", nargs="?")
 
-        for arg in arguments:
-            kwargs = {
-                key: value for (key, value) in arg.items() if key != 'flags'}
-            parser.add_argument(*arg['flags'], **kwargs)
-        # For testing
-        if input_args:
-            options = parser.parse_args(input_args)
-        else:
-            options = parser.parse_args()
-        options = vars(options)
-        if not options['data_file'] and not options['DATAFILE']:
-            parser.error("No data file specified.")
-        elif options['data_file'] and options['DATAFILE']:
-            parser.error("Multiple data files specified.")
-        elif options['DATAFILE']:
-            options['data_file'] = options['DATAFILE']
-        options.pop('DATAFILE')
+    for arg in arguments:
+        kwargs = {
+            key: value for (key, value) in arg.items() if key != 'flags'}
+        parser.add_argument(*arg['flags'], **kwargs)
+    # For testing
+    if input_args:
+        options = parser.parse_args(input_args)
     else:
-        parser = optparse.OptionParser(prog='MTplot', description=description+optparse_description, formatter=OptparseIndentedHelpFormatterWithNewLines(
-        ), version="%(prog)s from MTfit "+__version__, usage="%prog [options]\nUse -h to get more information")
-        for arg in arguments:
-            kwargs = {
-                key: value for (key, value) in arg.items() if key != 'flags'}
-            parser.add_option(*arg['flags'], **kwargs)
-        if input_args and len(input_args):
-            (options, args) = parser.parse_args(input_args)
-        else:
-            (options, args) = parser.parse_args()
-        options = vars(options)
-        options['data_file'] = False
-        if len(args):
-            options['data_file'] = args[0]
-        if not options['data_file'] and not options['DATAFILE']:
-            parser.error("No data file specified.")
-        elif options['data_file'] and options['DATAFILE']:
-            parser.error("Multiple data files specified.")
-        elif options['DATAFILE']:
-            options['data_file'] = options['DATAFILE']
-        options.pop('DATAFILE')
+        options = parser.parse_args()
+    options = vars(options)
+    if not options['data_file'] and not options['DATAFILE']:
+        parser.error("No data file specified.")
+    elif options['data_file'] and options['DATAFILE']:
+        parser.error("Multiple data files specified.")
+    elif options['DATAFILE']:
+        options['data_file'] = options['DATAFILE']
+    options.pop('DATAFILE')
     if options.pop('hide'):
         options['show'] = False
     else:
@@ -1232,7 +1078,7 @@ def _MTplot_argparser(input_args=[], test=False):
     return parser, options
 
 
-def MTplot_parser(input_args=False, test=False):
+def MTplot_parser(input_args: list[str] | bool = False, test: bool = False) -> dict[str, Any]:
     """
     Parses the command line arguments using _argparser and handles and returns the options
 
