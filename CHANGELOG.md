@@ -1,5 +1,21 @@
 # 变更日志
 
+## v2.0.1 - 示例复现修复
+
+### Bug 修复
+- **修复位置不确定性反演崩溃**: `inversion.py` 中 9 处空结果返回从 1D `np.array([])` 改为 2D `np.empty((n, 0))`，防止 `sampling.py` 中 `shape[1]` 的 IndexError
+- **修复多事件反演崩溃**: `sampling.py` 中添加空数组早期返回，避免对空 moment tensor 进行形状检查
+- **修复 Python 3 字典迭代 bug**: `sampling._convert()` 中 `dict.keys()` 在迭代时修改字典，改为 `list(dict.keys())`
+- **修复空 PDF 归一化崩溃**: `probability.ln_normalise()` 添加空数组检查，防止对零大小数组调用 `.max()`
+- **示例数据格式统一**: `example_data.py` 中 136 处 `np.matrix` 转换为 `np.ndarray`
+- **CSV 比较修复**: `make_csv_file.py` 中 `check_data()` 函数兼容 ndarray 和 matrix 类型比较
+
+### 示例测试结果
+- 全部 10 个 Pugh 示例通过（含 krafla_event、location_uncertainty、relative_event）
+- 单元测试: 207 通过，52 跳过，57 预期失败
+
+---
+
 ## v2.0.0 - Python 3.13 现代化重构
 
 ### 构建系统

@@ -87,11 +87,12 @@ self._ln_pdf = np.empty((1, 0))
 ## 统计
 
 - **生产代码中 np.matrix**: 0（排除 plot/）
+- **示例代码中 np.matrix**: 0（example_data.py 136 处已转换）
 - **cPickle 导入**: 0
 - **optparse 导入**: 0
 - **super(Cls, self) 模式**: 0
 - **sys.version_info 兼容检查**: 0
-- **总测试通过**: 185
+- **总测试通过**: 207（单元测试），10 个示例全部通过
 - **代码净减少**: ~3000+ 行
 
 ---
@@ -155,3 +156,28 @@ python setup.py build_ext --inplace
 - Vagrant 开发环境
 - 旧 README.rst
 - 测试输出文件（.mat，.out）
+
+---
+
+## Phase 3: 示例复现修复
+
+### 问题描述
+
+重构后部分示例无法运行，涉及位置不确定性（krafla_event、location_uncertainty）和多事件反演（relative_event）。
+
+### 根因
+
+1. **空数组维度不匹配**: `inversion.py` 中 9 处返回 `np.array([])` (shape=(0,), 1D)，而下游 `sampling.py` 假设所有数组为 2D（np.matrix 遗留假设）
+2. **Python 3 字典迭代**: `sampling._convert()` 在迭代 `dict.keys()` 时修改字典，Python 2 中 keys() 返回列表不受影响，Python 3 返回视图导致 RuntimeError
+3. **空 PDF 处理**: `ln_normalise()` 对空数组调用 `.max()` 引发 ValueError
+4. **示例数据格式**: `example_data.py` 仍使用 `np.matrix`，与 CSV 解析器返回的 `np.ndarray` 不兼容
+
+### 修复
+
+| 文件 | 改动 |
+|------|------|
+| `inversion.py` | 9 处 `np.array([])` → `np.empty((n, 0))` |
+| `sampling.py` | 空数组早期返回 (2处) + `list(dict.keys())` (1处) |
+| `probability.py` | `ln_normalise` 空数组检查 (1处) |
+| `example_data.py` | `from numpy import array as matrix` (136 处调用) |
+| `make_csv_file.py` | 类型比较兼容 ndarray/matrix (1处) |
